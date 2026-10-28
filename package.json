@@ -17,7 +17,7 @@
     "start:all": "node scripts/start-all.mjs",
     "start": "node scripts/start-all.mjs",
     "build:web": "next build apps/web",
-    "vercel-build": "next build apps/web",
+    "vercel-build": "next build apps/web && node scripts/prepare-vercel-build.mjs",
     "start:web": "next start apps/web -p 3000"
   },
   "keywords": [
