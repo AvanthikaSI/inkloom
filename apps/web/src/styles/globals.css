@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground: 244, 244, 245;
+  --background: 11, 12, 16;
+}
+
+body {
+  color: rgb(var(--foreground));
+  background: #0b0c10;
+  background-image: 
+    radial-gradient(at 20% 0%, rgba(255, 255, 255, 0.05) 0px, transparent 50%),
+    radial-gradient(at 80% 15%, rgba(161, 161, 170, 0.04) 0px, transparent 45%),
+    radial-gradient(at 50% 100%, rgba(255, 255, 255, 0.03) 0px, transparent 60%);
+  background-attachment: fixed;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #a1a1aa;
+  outline-offset: 2px;
+}
+
+/* Royal Titanium & Charcoal Luxury Panels */
+.titanium-panel {
+  background: linear-gradient(180deg, #181920 0%, #101116 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.titanium-card {
+  background: linear-gradient(180deg, #1e2029 0%, #13141a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.titanium-card:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(255, 255, 255, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transform: translateY(-2px);
+}
+
+/* Silver Metallic Button */
+.silver-btn {
+  background: linear-gradient(180deg, #ffffff 0%, #d4d4d8 100%);
+  color: #09090b;
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.15), inset 0 1px 0 #ffffff;
+  transition: all 0.25s ease;
+}
+
+.silver-btn:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #e4e4e7 100%);
+  box-shadow: 0 6px 22px rgba(255, 255, 255, 0.25), inset 0 1px 0 #ffffff;
+  transform: translateY(-1px);
+}
+
+.silver-btn:active {
+  transform: translateY(1px);
+}
+
+/* Charcoal Metallic Button */
+.charcoal-btn {
+  background: linear-gradient(180deg, #27272a 0%, #18181b 100%);
+  color: #f4f4f5;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.25s ease;
+}
+
+.charcoal-btn:hover {
+  background: linear-gradient(180deg, #3f3f46 0%, #27272a 100%);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Custom Titanium Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0e0f14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 9999px;
+  border: 1px solid #18181b;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #71717a;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

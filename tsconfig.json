@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "outDir": "./dist",
+    "paths": {
+      "@inkloom/shared": ["./packages/shared/src/index.ts"],
+      "@inkloom/shared/*": ["./packages/shared/src/*"],
+      "@inkloom/vector-store": ["./packages/vector-store/src/index.ts"],
+      "@inkloom/vector-store/*": ["./packages/vector-store/src/*"],
+      "@inkloom/database": ["./packages/database/src/index.ts"],
+      "@inkloom/database/*": ["./packages/database/src/*"],
+      "@inkloom/langgraph-core": ["./packages/langgraph-core/src/index.ts"],
+      "@inkloom/langgraph-core/*": ["./packages/langgraph-core/src/*"]
+    }
+  },
+  "include": [
+    "packages/**/*",
+    "apps/server/**/*",
+    "tests/**/*"
+  ],
+  "exclude": ["node_modules", "dist", "apps/web"]
+}
