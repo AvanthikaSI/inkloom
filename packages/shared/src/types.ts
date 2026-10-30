@@ -134,7 +134,13 @@ export interface AuditLogEntry {
   contentId: string;
   actorId: string;
   actorName: string;
-  action: 'submitted_review' | 'applied_suggestion' | 'approved_content' | 'overridden_warning' | 'published';
+  action:
+    | 'submitted_review'
+    | 'changes_requested'
+    | 'applied_suggestion'
+    | 'approved_content'
+    | 'overridden_warning'
+    | 'published';
   metadata?: Record<string, any>;
   timestamp: string;
 }

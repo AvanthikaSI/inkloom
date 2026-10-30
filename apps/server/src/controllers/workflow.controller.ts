@@ -59,7 +59,14 @@ export class WorkflowController {
         contentId,
         actorId: actorId || 'usr_manager_01',
         actorName: actorName || 'Elena Rostova',
-        action: status === 'approved' ? 'approved_content' : (status === 'published' ? 'published' : 'submitted_review'),
+        action:
+          status === 'approved'
+            ? 'approved_content'
+            : status === 'published'
+            ? 'published'
+            : status === 'changes_requested'
+            ? 'changes_requested'
+            : 'submitted_review',
         metadata: { newStatus: status, role }
       });
 

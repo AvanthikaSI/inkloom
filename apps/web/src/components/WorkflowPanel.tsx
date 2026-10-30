@@ -125,12 +125,17 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
   const steps = [
     { id: 'draft', step: 1, label: 'Creator Draft', desc: 'Authoring & Self-Audit' },
-    { id: 'in_review', step: 2, label: 'Under Review', desc: 'Cross-Stakeholder Verification' },
+    {
+      id: 'in_review',
+      step: 2,
+      label: status === 'changes_requested' ? 'Changes Requested' : 'Under Review',
+      desc: status === 'changes_requested' ? 'Creator Revision Required' : 'Cross-Stakeholder Verification'
+    },
     { id: 'approved', step: 3, label: 'Brand Signed-Off', desc: 'Policy & Fact Certified' },
     { id: 'published', step: 4, label: 'Live Published', desc: 'Public Release Cleared' }
   ];
 
-  const currentStepIndex = steps.findIndex((s) => s.id === status);
+  const currentStepIndex = status === 'changes_requested' ? 1 : steps.findIndex((s) => s.id === status);
 
   return (
     <div className="space-y-6">
@@ -153,19 +158,19 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
           {/* Action Buttons based on Role */}
           <div className="flex items-center space-x-3">
-            {status === 'draft' && (
+            {(status === 'draft' || status === 'changes_requested') && userRole === 'creator' && (
               <button
                 onClick={() => handleStatusChange('in_review')}
                 className="silver-btn text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer"
               >
-                Submit for Sign-Off Review
+                {status === 'changes_requested' ? 'Resubmit for Sign-Off Review' : 'Submit for Sign-Off Review'}
               </button>
             )}
 
             {status === 'in_review' && userRole !== 'creator' && (
               <>
                 <button
-                  onClick={() => handleStatusChange('draft')}
+                  onClick={() => handleStatusChange('changes_requested')}
                   className="charcoal-btn text-amber-400 text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer"
                 >
                   Request Changes
@@ -265,6 +270,17 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
         {content ? (
           <div className="mt-4 space-y-3">
+            {status === 'changes_requested' && userRole === 'creator' && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-950/30 px-3.5 py-3 text-xs text-amber-100">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" />
+                <div>
+                  <p className="font-bold">Reviewer requested changes</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-amber-200/80">
+                    Review the feedback below, update this draft, and resubmit it for sign-off.
+                  </p>
+                </div>
+              </div>
+            )}
             <h4 className="text-base font-bold text-white">{content.title || 'Untitled Draft'}</h4>
             <div className="max-h-80 overflow-y-auto rounded-xl border border-white/[0.08] bg-[#0c0d12] p-4">
               <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-zinc-200">
