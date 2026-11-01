@@ -5,15 +5,12 @@ import {
   BookOpen,
   CheckCircle,
   ShieldAlert,
-  Palette,
   Search,
   Plus,
   ExternalLink,
-  Copy,
   Check,
   Hash,
   FileCheck,
-  Type,
   Layers,
   Sparkles,
   Shield,
@@ -31,21 +28,17 @@ import {
   getGuidelines,
   getFacts,
   getTerminology,
-  getBrandKit,
   addGuideline,
   addFact,
   addTerminology
 } from '../lib/api';
 
 export const KnowledgeHub: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'guidelines' | 'facts' | 'terminology' | 'brandkit'>('guidelines');
+  const [activeTab, setActiveTab] = useState<'guidelines' | 'facts' | 'terminology'>('guidelines');
   const [guidelines, setGuidelines] = useState<any[]>([]);
   const [facts, setFacts] = useState<any[]>([]);
   const [terminology, setTerminology] = useState<any[]>([]);
-  const [brandKit, setBrandKit] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [copiedHex, setCopiedHex] = useState<string | null>(null);
-  const [copiedAsset, setCopiedAsset] = useState<string | null>(null);
 
   // Modals state
   const [showDefineModal, setShowDefineModal] = useState(false);
@@ -124,31 +117,17 @@ export const KnowledgeHub: React.FC = () => {
 
   const loadAll = async () => {
     try {
-      const [gRes, fRes, tRes, bRes] = await Promise.all([
+      const [gRes, fRes, tRes] = await Promise.all([
         getGuidelines(),
         getFacts(),
-        getTerminology(),
-        getBrandKit()
+        getTerminology()
       ]);
       if (gRes.success) setGuidelines(gRes.guidelines);
       if (fRes.success) setFacts(fRes.facts);
       if (tRes.success) setTerminology(tRes.terminology);
-      if (bRes.success) setBrandKit(bRes.brandKit);
     } catch (e) {
       console.error('Failed to load knowledge hub:', e);
     }
-  };
-
-  const copyHex = (hex: string) => {
-    navigator.clipboard.writeText(hex);
-    setCopiedHex(hex);
-    setTimeout(() => setCopiedHex(null), 2000);
-  };
-
-  const copyAssetPath = (path: string) => {
-    navigator.clipboard.writeText(path);
-    setCopiedAsset(path);
-    setTimeout(() => setCopiedAsset(null), 2000);
   };
 
   const handleCreateEntry = async (e: React.FormEvent) => {
@@ -308,41 +287,6 @@ export const KnowledgeHub: React.FC = () => {
       t.explanation?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const reusableAssets = [
-    {
-      id: 'asset_logo_primary',
-      name: 'Inkloom Primary Vector Monogram',
-      type: 'Vector SVG',
-      path: '/assets/inkloom-logo.svg',
-      desc: 'Official primary brand mark for dark background lockups.',
-      format: 'SVG'
-    },
-    {
-      id: 'asset_logo_horizontal',
-      name: 'Inkloom Titanium Horizontal Lockup',
-      type: 'Vector SVG',
-      path: '/assets/inkloom-horizontal.svg',
-      desc: 'Standard banner logo for header navigation and document footers.',
-      format: 'SVG'
-    },
-    {
-      id: 'asset_badge_certified',
-      name: 'SOC2 & GDPR Certified Trust Seal',
-      type: 'Vector Badge',
-      path: '/assets/inkloom-soc2-badge.svg',
-      desc: 'Mandatory trust seal on all landing pages and audited press releases.',
-      format: 'SVG'
-    },
-    {
-      id: 'asset_icon_pack',
-      name: 'Inkloom Core Micro-Icons Suite',
-      type: 'Design System Pack',
-      path: '/assets/inkloom-icons.zip',
-      desc: '24px geometric icon suite conforming to 4.5:1 minimum WCAG contrast.',
-      format: 'ZIP / SVG'
-    }
-  ];
-
   return (
     <div className="space-y-6">
       {/* Knowledge Hub Header Banner in Titanium Theme */}
@@ -393,8 +337,7 @@ export const KnowledgeHub: React.FC = () => {
             {[
               { id: 'guidelines', label: 'Brand Guidelines', count: guidelines.length, icon: Layers },
               { id: 'facts', label: 'Approved Fact Matrix', count: facts.length, icon: FileCheck },
-              { id: 'terminology', label: 'Prohibited Lexicon', count: terminology.length, icon: ShieldAlert },
-              { id: 'brandkit', label: 'Brand Kit & Assets', count: reusableAssets.length, icon: Palette }
+              { id: 'terminology', label: 'Prohibited Lexicon', count: terminology.length, icon: ShieldAlert }
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -563,161 +506,6 @@ export const KnowledgeHub: React.FC = () => {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 4: Visual Brand Kit & Reusable Assets */}
-      {activeTab === 'brandkit' && (
-        <div className="space-y-6">
-          {/* Visual Brand Kit Parameters */}
-          {brandKit && (
-            <div className="titanium-panel rounded-2xl p-6 sm:p-8 space-y-8 shadow-2xl">
-              <div className="flex items-center justify-between pb-4 border-b border-white/[0.08]">
-                <div>
-                  <h3 className="text-base font-bold text-white tracking-tight">{brandKit.kitName}</h3>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Official design tokens, WCAG 2.1 contrast ratios, and approved typography hierarchy.
-                  </p>
-                </div>
-                <span className="text-[10px] font-mono uppercase px-2.5 py-1 rounded bg-zinc-800 text-zinc-300 border border-white/[0.1] font-bold">
-                  WCAG 2.1 AA Compliant (Min {brandKit.minContrastRatio || 4.5}:1)
-                </span>
-              </div>
-
-              {/* Color Palette Swatches */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-zinc-300 uppercase font-mono tracking-wider">
-                  Primary Brand Palette (Click to Copy HEX)
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                  {brandKit.primaryColors.map((color: string) => (
-                    <div
-                      key={color}
-                      onClick={() => copyHex(color)}
-                      className="titanium-card group p-3.5 rounded-xl space-y-2.5 cursor-pointer shadow-md"
-                    >
-                      <div
-                        className="h-20 rounded-lg border border-white/[0.1] relative overflow-hidden"
-                        style={{ backgroundColor: color }}
-                      >
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-[10px] font-bold">
-                          {copiedHex === color ? (
-                            <span className="flex items-center space-x-1 text-emerald-400">
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Copied!</span>
-                            </span>
-                          ) : (
-                            <span className="flex items-center space-x-1">
-                              <Copy className="w-3.5 h-3.5" />
-                              <span>Copy</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-xs font-mono">
-                        <span className="font-bold text-white">{color}</span>
-                        <span className="text-[10px] text-zinc-400 font-semibold">HEX</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Typography Preview */}
-              <div className="space-y-3 pt-4 border-t border-white/[0.08]">
-                <h4 className="text-xs font-bold text-zinc-300 uppercase font-mono tracking-wider">
-                  Approved Typography Stacks
-                </h4>
-                <div className="flex flex-wrap gap-3">
-                  {brandKit.approvedFonts.map((font: string) => (
-                    <div
-                      key={font}
-                      className="px-4 py-2.5 rounded-xl bg-[#0c0d12] border border-white/[0.08] text-xs font-mono text-zinc-200 flex items-center space-x-2"
-                    >
-                      <Type className="w-3.5 h-3.5 text-zinc-400" />
-                      <span className="font-bold text-white">{font}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Reusable Brand Assets Library */}
-          <div className="titanium-panel rounded-2xl p-6 sm:p-8 space-y-5 shadow-2xl">
-            <div className="flex items-center justify-between pb-4 border-b border-white/[0.08]">
-              <div>
-                <h3 className="text-base font-bold text-white tracking-tight">Approved Reusable Brand Assets</h3>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Standardized vector marks, lockups, and compliance trust badges for creators and external agencies.
-                </p>
-              </div>
-              <span className="text-[10px] font-mono uppercase px-2.5 py-1 rounded bg-zinc-800 text-zinc-300 border border-white/[0.08] font-bold">
-                SSOT CDN Assets
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {reusableAssets.map((asset) => (
-                <div
-                  key={asset.id}
-                  className="titanium-card p-4 rounded-xl flex items-start justify-between gap-4 border border-white/[0.06]"
-                >
-                  <div className="space-y-1.5">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-bold text-white">{asset.name}</span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">
-                        {asset.format}
-                      </span>
-                    </div>
-                    <p className="text-xs text-zinc-400 leading-relaxed">{asset.desc}</p>
-                    <span className="text-[10px] font-mono text-zinc-500 block truncate">{asset.path}</span>
-                  </div>
-
-                  <div className="flex items-center space-x-2 shrink-0">
-                    <button
-                      onClick={() => copyAssetPath(asset.path)}
-                      className="charcoal-btn p-2 rounded-lg text-zinc-300 hover:text-white cursor-pointer"
-                      title="Copy Asset Path"
-                    >
-                      {copiedAsset === asset.path ? (
-                        <Check className="w-4 h-4 text-emerald-400" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Confidentiality & External AI Services Disclosure Banner */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="titanium-card p-5 rounded-2xl border border-white/[0.08] space-y-2">
-              <div className="flex items-center space-x-2 text-white">
-                <FolderLock className="w-4 h-4 text-zinc-300" />
-                <h4 className="text-xs font-bold uppercase tracking-wider font-mono">
-                  Confidential Material Protection
-                </h4>
-              </div>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                All uploaded brand guidelines, proprietary facts, and unpublished drafts are secured in tenant-isolated vaults (<span className="font-mono text-zinc-300">org_inkloom_01</span>). Proprietary assets are never shared across organizations or used for public foundation model retraining.
-              </p>
-            </div>
-
-            <div className="titanium-card p-5 rounded-2xl border border-white/[0.08] space-y-2">
-              <div className="flex items-center space-x-2 text-white">
-                <Sparkles className="w-4 h-4 text-zinc-300" />
-                <h4 className="text-xs font-bold uppercase tracking-wider font-mono">
-                  AI & External Services Disclosure
-                </h4>
-              </div>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Audits are generated via an ensemble of Groq ChatGroq LLMs, local Python vision/document extractors, and ChromaDB vector embeddings. All automated findings are explainable suggestions subject to human creator and brand manager sign-off.
-              </p>
-            </div>
           </div>
         </div>
       )}
