@@ -72,6 +72,15 @@ export class ChatRepository {
     return session;
   }
 
+
+  public static async renameSession(sessionId: string, title: string): Promise<boolean> {
+    const session = inMemoryDb.chatSessions.get(sessionId);
+    if (!session) return false;
+    (session as any).title = title.trim();
+    inMemoryDb.persist();
+    return true;
+  }
+
   public static async deleteSession(sessionId: string): Promise<boolean> {
     const deleted = inMemoryDb.chatSessions.delete(sessionId);
     if (deleted) inMemoryDb.persist();

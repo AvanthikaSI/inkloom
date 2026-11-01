@@ -37,6 +37,17 @@ export class ChatController {
     }
   }
 
+
+  public static async renameSession(req: Request, res: Response): Promise<void> {
+    try {
+      const { title } = req.body;
+      const success = await ChatRepository.renameSession(req.params.sessionId, title || 'New Conversation');
+      res.json({ success });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+
   public static async deleteSession(req: Request, res: Response): Promise<void> {
     try {
       const deleted = await ChatRepository.deleteSession(req.params.sessionId);

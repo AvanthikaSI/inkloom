@@ -4,13 +4,16 @@ import React, { useState } from 'react';
 import { GovernanceProvider, useGovernance } from '../lib/governance-context';
 import { Navbar, DYNAMIC_ROLES } from './Navbar';
 import { ShieldCheck, Info, X, Cpu } from 'lucide-react';
+import { useBodyScrollLock } from '../lib/use-body-scroll-lock';
 
 function InnerAppShell({ children }: { children: React.ReactNode }) {
   const { userRole, setUserRole, complianceScore } = useGovernance();
   const [showAiDisclosure, setShowAiDisclosure] = useState(false);
 
+  useBodyScrollLock(showAiDisclosure);
+
   return (
-    <div className="relative min-h-screen bg-[#07080c] text-zinc-100 flex flex-col selection:bg-blue-600/30 selection:text-white overflow-hidden">
+    <div className="relative min-h-screen bg-[#07080c] text-zinc-100 flex flex-col selection:bg-blue-600/30 selection:text-white overflow-x-clip">
       {/* Ambient Glossy Background Glow Spheres */}
       <div className="pointer-events-none fixed -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[130px]" />
       <div className="pointer-events-none fixed top-1/3 -right-40 h-[600px] w-[600px] rounded-full bg-indigo-600/10 blur-[150px]" />
@@ -57,8 +60,8 @@ function InnerAppShell({ children }: { children: React.ReactNode }) {
 
       {/* Ethical AI Disclosure Modal */}
       {showAiDisclosure && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="titanium-panel rounded-2xl p-6 sm:p-8 max-w-xl w-full space-y-5 shadow-2xl">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 overflow-y-auto overscroll-contain">
+          <div className="titanium-panel rounded-2xl p-6 sm:p-8 max-w-xl w-full space-y-5 shadow-2xl max-h-[85vh] overflow-y-auto overscroll-contain">
             <div className="flex items-center justify-between pb-4 border-b border-white/[0.08]">
               <div className="flex items-center space-x-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-800 text-zinc-200 border border-zinc-700">

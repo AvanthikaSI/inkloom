@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { runAuditText, runAuditFile, applySurgicalPatch, overrideWarning, updateContent, updateWorkflowStatus, type ChatDraftContext } from '../lib/api';
 import { useGovernance } from '../lib/governance-context';
+import { useBodyScrollLock } from '../lib/use-body-scroll-lock';
 
 interface ReviewStudioProps {
   userRole: string;
@@ -132,6 +133,7 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
   const [selectedViolation, setSelectedViolation] = useState<any>(null);
   const [overrideReason, setOverrideReason] = useState('');
   const [showOverrideModal, setShowOverrideModal] = useState(false);
+  useBodyScrollLock(showOverrideModal);
   const [uploadName, setUploadName] = useState('');
   const [uploadSize, setUploadSize] = useState<string>('');
   const [uploadType, setUploadType] = useState<string>('');
@@ -875,8 +877,8 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
 
       {/* Override Warning Modal */}
       {showOverrideModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
-          <div className="titanium-panel rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-150 overflow-y-auto overscroll-contain">
+          <div className="titanium-panel rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto overscroll-contain">
             <div className="flex items-center space-x-2.5 pb-2 border-b border-white/[0.08]">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-950 text-amber-400 border border-amber-800">
                 <AlertTriangle className="w-5 h-5" />

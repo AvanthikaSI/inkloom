@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useBodyScrollLock } from '../lib/use-body-scroll-lock';
 import {
   BookOpen,
   CheckCircle,
@@ -44,6 +45,7 @@ export const KnowledgeHub: React.FC = () => {
   const [showDefineModal, setShowDefineModal] = useState(false);
   const [defineType, setDefineType] = useState<'guideline' | 'fact' | 'lexicon'>('guideline');
   const [showImportModal, setShowImportModal] = useState(false);
+  useBodyScrollLock(showDefineModal || showImportModal);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalFeedback, setModalFeedback] = useState<string | null>(null);
 
@@ -512,8 +514,8 @@ export const KnowledgeHub: React.FC = () => {
 
       {/* MODAL 1: Define Entry Modal */}
       {showDefineModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="titanium-panel rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-white/[0.1] space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn overflow-y-auto overscroll-contain">
+          <div className="titanium-panel rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-white/[0.1] space-y-5 max-h-[85vh] overflow-y-auto overscroll-contain">
             <div className="flex items-center justify-between pb-4 border-b border-white/[0.08]">
               <div className="flex items-center space-x-2.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 text-white">
@@ -731,8 +733,8 @@ export const KnowledgeHub: React.FC = () => {
 
       {/* MODAL 2: Batch Import Modal */}
       {showImportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="titanium-panel rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-white/[0.1] space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn overflow-y-auto overscroll-contain">
+          <div className="titanium-panel rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-white/[0.1] space-y-5 max-h-[85vh] overflow-y-auto overscroll-contain">
             <div className="flex items-center justify-between pb-4 border-b border-white/[0.08]">
               <div className="flex items-center space-x-2.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 text-white">

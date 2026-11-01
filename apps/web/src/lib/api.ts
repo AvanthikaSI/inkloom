@@ -287,6 +287,15 @@ export async function createChatSession(sessionId?: string, title?: string, acti
   });
 }
 
+
+export async function renameChatSession(sessionId: string, title: string) {
+  return apiFetch(`/chat/sessions/${sessionId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title })
+  });
+}
+
 export async function deleteChatSession(sessionId: string) {
   return apiFetch(`/chat/sessions/${sessionId}`, {
     method: 'DELETE'

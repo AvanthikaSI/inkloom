@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useBodyScrollLock } from '../lib/use-body-scroll-lock';
 import {
   History,
   ShieldAlert,
@@ -26,6 +27,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ onRestoreDraft }) =>
   const [historyList, setHistoryList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  useBodyScrollLock(!!selectedRecord);
   const [filterRisk, setFilterRisk] = useState<string>('all');
   const [restoreNotice, setRestoreNotice] = useState<string>('');
 
@@ -241,8 +243,8 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ onRestoreDraft }) =>
 
       {/* Inspect Record Modal Popup */}
       {selectedRecord && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="titanium-panel rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-white/[0.15]">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 overflow-y-auto overscroll-contain">
+          <div className="titanium-panel rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-white/[0.15] overflow-hidden overscroll-contain">
             {/* Modal Header */}
             <div className="p-5 border-b border-white/[0.08] flex items-center justify-between bg-[#121319]">
               <div className="space-y-0.5">

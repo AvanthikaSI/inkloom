@@ -23,9 +23,23 @@ import {
   FileText,
   Image as ImageIcon,
   Check,
-  Cpu
+  Cpu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelLeft,
+  Edit2,
+  Search
 } from 'lucide-react';
-import { sendChatMessage, getChatHistory, resetChatSession, fetchChatSessions, createChatSession, deleteChatSession, type ChatDraftContext } from '../lib/api';
+import {
+  sendChatMessage,
+  getChatHistory,
+  resetChatSession,
+  fetchChatSessions,
+  createChatSession,
+  deleteChatSession,
+  renameChatSession,
+  type ChatDraftContext
+} from '../lib/api';
 
 interface ToolExecution {
   toolName: string;
@@ -140,6 +154,12 @@ You can ask me questions, test promotional claims, or upload documents and creat
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
+  // Gemini / ChatGPT style toggleable sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [searchSessionQuery, setSearchSessionQuery] = useState('');
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -185,32 +205,69 @@ You can ask me questions, test promotional claims, or upload documents and creat
 
   const handleNewSession = async () => {
     const newId = `session_${Date.now()}`;
+    const defaultTitle = `Chat ${new Date().toLocaleDateString([], { month: 'short', day: 'numeric' })} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     try {
-      await createChatSession(newId, 'New Chat', activeDraft);
+      await createChatSession(newId, defaultTitle, activeDraft);
       setCurrentSessionId(newId);
       setMessages([{
         id: `welcome_${Date.now()}`,
         role: 'assistant',
-        content: 'Hello! Started a brand new conversation session. How can I assist you with content compliance, fact checking, or surgical diff patches?',
+        content: `Hello! Started a brand new conversation session: **${defaultTitle}**.\nHow can I assist you with content compliance, fact checking, or surgical diff patches?`,
         activeAgent: 'Master Orchestrator',
         timestamp: new Date().toISOString()
       }]);
-      loadSessions();
+      await loadSessions();
     } catch {
       setCurrentSessionId(newId);
     }
+  };
+
+  const handleStartRename = (session: { sessionId: string; title: string }, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingSessionId(session.sessionId);
+    setEditingTitle(session.title);
+  };
+
+  const handleSaveRename = async (sId: string, e?: React.SyntheticEvent) => {
+    if (e) e.stopPropagation();
+    const trimmed = editingTitle.trim();
+    if (!trimmed) {
+      setEditingSessionId(null);
+      return;
+    }
+
+    try {
+      await renameChatSession(sId, trimmed);
+      setSessionsList((prev) =>
+        prev.map((s) => (s.sessionId === sId ? { ...s, title: trimmed } : s))
+      );
+      setEditingSessionId(null);
+    } catch (err) {
+      console.error('Failed to rename session:', err);
+      setEditingSessionId(null);
+    }
+  };
+
+  const handleCancelRename = (e?: React.SyntheticEvent) => {
+    if (e) e.stopPropagation();
+    setEditingSessionId(null);
   };
 
   const handleDeleteSession = async (sId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       await deleteChatSession(sId);
+      setSessionsList((prev) => prev.filter((s) => s.sessionId !== sId));
       if (currentSessionId === sId) {
-        setCurrentSessionId('session_default');
+        const remaining = sessionsList.filter((s) => s.sessionId !== sId);
+        if (remaining.length > 0) {
+          setCurrentSessionId(remaining[0].sessionId);
+        } else {
+          setCurrentSessionId('session_default');
+        }
       }
-      loadSessions();
     } catch (err) {
-      console.error(err);
+      console.error('Failed to delete session:', err);
     }
   };
 
@@ -242,7 +299,6 @@ You can ask me questions, test promotional claims, or upload documents and creat
     try {
       const res = await sendChatMessage(textToSend, currentSessionId, userRole, currentFile, activeDraft);
       if (res.success) {
-        // Isolated chat: do not overwrite active editor draft
         const assistantMsg: Message = {
           id: `asst_${Date.now()}`,
           role: 'assistant',
@@ -255,6 +311,7 @@ You can ask me questions, test promotional claims, or upload documents and creat
 
         setActiveAgentStatus(res.activeAgent || 'Master Orchestrator');
         setMessages((prev) => [...prev, assistantMsg]);
+        loadSessions();
       } else {
         const errorMsg: Message = {
           id: `err_${Date.now()}`,
@@ -334,334 +391,486 @@ You can ask me questions, test promotional claims, or upload documents and creat
     'Which brand guidelines currently have high creator ambiguity friction?'
   ];
 
+  const filteredSessions = sessionsList.filter((s) =>
+    s.title.toLowerCase().includes(searchSessionQuery.toLowerCase())
+  );
+
+  const activeSessionObj = sessionsList.find((s) => s.sessionId === currentSessionId);
+
   return (
     <div
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative titanium-panel rounded-2xl overflow-hidden flex flex-col min-h-[640px] h-[min(780px,calc(100vh-9rem))] shadow-2xl transition-all duration-300 ${
+      className={`relative titanium-panel rounded-2xl overflow-hidden flex flex-row min-h-[660px] h-[min(800px,calc(100vh-8.5rem))] shadow-2xl transition-all duration-300 border border-white/[0.1] ${
         isDragging ? 'border-white bg-[#1a1b24]' : ''
       }`}
     >
-      {/* Header & Agent Status Bar */}
-      <div className="px-5 py-4 border-b border-white/[0.08] bg-[#121319] flex items-center justify-between">
-        <div className="flex items-center space-x-3.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600/70 text-white shadow-md">
-            <Sparkles className="w-5 h-5 text-white" />
+      {/* =========================================================================
+          GEMINI / CHATGPT STYLE TOGGLEABLE LEFT SIDEBAR
+          ========================================================================= */}
+      <aside
+        className={`transition-all duration-300 ease-in-out flex flex-col border-r border-white/[0.08] bg-[#090a0f] relative z-20 flex-shrink-0 ${
+          sidebarOpen ? 'w-64 sm:w-72 opacity-100' : 'w-0 opacity-0 pointer-events-none border-r-0 overflow-hidden'
+        }`}
+      >
+        {/* Sidebar Header */}
+        <div className="p-3.5 border-b border-white/[0.06] flex items-center justify-between bg-[#0e1017]">
+          <div className="flex items-center space-x-2">
+            <MessageSquare className="w-4 h-4 text-zinc-300" />
+            <span className="text-xs font-bold text-white tracking-tight">Conversations</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+              {sessionsList.length}
+            </span>
           </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <h3 className="text-sm font-bold text-white tracking-tight">Agentic AI Brand Guardian</h3>
-              <span className="text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700">
-                LangGraph + Groq
-              </span>
-            </div>
-            <p className="text-[11px] text-zinc-400 flex items-center space-x-2 mt-0.5 font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>
-                Active Agent: <strong className="text-white font-bold">{activeAgentStatus}</strong>
-              </span>
-            </p>
-          </div>
-        </div>
-
-        <button
-          onClick={handleReset}
-          className="charcoal-btn text-xs px-3 py-1.5 rounded-xl transition flex items-center space-x-1.5 cursor-pointer"
-          title="Reset Conversation Session"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline font-semibold">Reset Session</span>
-        </button>
-      </div>
-
-      {/* Multi-Session Manager Bar */}
-      <div className="px-5 py-2.5 bg-[#0e0f14] border-b border-white/[0.06] flex items-center justify-between gap-3 overflow-x-auto text-xs">
-        <div className="flex items-center space-x-2 flex-1 min-w-0">
-          <MessageSquare className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-          <span className="text-[11px] font-semibold text-zinc-400 flex-shrink-0">Active Session:</span>
-          <select
-            value={currentSessionId}
-            onChange={(e) => setCurrentSessionId(e.target.value)}
-            className="rounded-lg border border-white/[0.1] bg-[#14151c] px-2.5 py-1 text-xs text-white focus:outline-none focus:border-zinc-400 cursor-pointer truncate max-w-xs"
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.06] cursor-pointer transition"
+            title="Collapse Sidebar"
           >
-            {sessionsList.length === 0 && <option value={currentSessionId}>Default Session</option>}
-            {sessionsList.map((s) => (
-              <option key={s.sessionId} value={s.sessionId}>
-                {s.title} ({s.messageCount} msgs)
-              </option>
-            ))}
-          </select>
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
         </div>
 
-        <div className="flex items-center space-x-2 flex-shrink-0">
+        {/* + New Chat Action */}
+        <div className="p-3 border-b border-white/[0.06]">
           <button
             onClick={handleNewSession}
-            className="silver-btn text-[11px] font-bold px-3 py-1 rounded-lg flex items-center space-x-1 cursor-pointer"
-            title="Create a new clean chat session"
+            className="w-full silver-btn text-xs font-bold py-2.5 px-3 rounded-xl flex items-center justify-center space-x-2 cursor-pointer shadow-md transition-all group"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-200" />
             <span>New Chat</span>
           </button>
-          {currentSessionId !== 'session_default' && (
-            <button
-              onClick={(e) => handleDeleteSession(currentSessionId, e)}
-              className="text-zinc-500 hover:text-rose-400 p-1 cursor-pointer transition-colors"
-              title="Delete this session"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
-      </div>
 
-      {/* Message Feed */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-[#0c0d12]/60">
-        {messages.map((msg) => {
-          const isUser = msg.role === 'user';
-          const hasTools = msg.toolExecutions && msg.toolExecutions.length > 0;
-          const hasFindings = msg.structuredFindings && msg.structuredFindings.length > 0;
-          const isExpanded = expandedTools[msg.id];
-
-          return (
-            <div key={msg.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[88%] md:max-w-[78%] space-y-1.5 ${isUser ? 'items-end' : 'items-start'}`}>
-                {/* Author Label */}
-                <div className={`flex items-center space-x-2 text-[11px] text-zinc-400 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                  {isUser ? (
-                    <>
-                      <span className="font-semibold text-zinc-300">You ({userRole})</span>
-                      <User className="w-3.5 h-3.5 text-zinc-400" />
-                    </>
-                  ) : (
-                    <>
-                      <Bot className="w-3.5 h-3.5 text-zinc-400" />
-                      <span className="font-bold text-white">{msg.activeAgent || 'Brand Guardian'}</span>
-                    </>
-                  )}
-                  <span>•</span>
-                  <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-
-                {/* Message Bubble in Titanium Palette */}
-                <div
-                  className={`p-4 sm:p-5 rounded-2xl text-xs leading-relaxed shadow-lg ${
-                    isUser
-                      ? 'bg-gradient-to-b from-[#2b2d39] to-[#1c1d25] text-white rounded-tr-none border border-white/[0.15] shadow-md'
-                      : 'bg-[#121319] border border-white/[0.08] text-zinc-200 rounded-tl-none space-y-3.5 shadow-md'
-                  }`}
-                >
-                  {/* Attached File Card */}
-                  {msg.attachment && (
-                    <div className="flex items-center space-x-2.5 rounded-xl border border-white/[0.1] bg-[#0c0d12] p-2.5 text-xs">
-                      {msg.attachment.type.includes('image') ? (
-                        <ImageIcon className="w-4 h-4 text-zinc-300 flex-shrink-0" />
-                      ) : (
-                        <FileText className="w-4 h-4 text-zinc-300 flex-shrink-0" />
-                      )}
-                      <div className="truncate">
-                        <p className="font-semibold text-white truncate">{msg.attachment.name}</p>
-                        <p className="text-[10px] text-zinc-400 font-mono">
-                          {(msg.attachment.size / 1024).toFixed(1)} KB • {msg.attachment.type}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Tool Execution Transparency Accordion */}
-                  {!isUser && hasTools && (
-                    <div className="bg-[#0b0c10] border border-white/[0.08] rounded-xl p-3 space-y-2">
-                      <button
-                        onClick={() => toggleToolExpand(msg.id)}
-                        className="w-full flex items-center justify-between text-[11px] text-zinc-300 hover:text-white font-mono cursor-pointer"
-                      >
-                        <span className="flex items-center space-x-2 text-zinc-300 font-semibold">
-                          <Wrench className="w-3.5 h-3.5" />
-                          <span>{msg.toolExecutions!.length} Tool Call{msg.toolExecutions!.length > 1 ? 's' : ''} Executed</span>
-                        </span>
-                        {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-zinc-400" /> : <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />}
-                      </button>
-
-                      {isExpanded && (
-                        <div className="space-y-2 pt-2 border-t border-white/[0.06] text-[10px] font-mono">
-                          {msg.toolExecutions!.map((exec, idx) => (
-                            <div key={idx} className="bg-[#14151c] p-2.5 rounded-lg border border-white/[0.04] space-y-1">
-                              <div className="flex items-center justify-between text-zinc-200 font-bold">
-                                <span>🔧 {exec.toolName}</span>
-                                <span className="text-emerald-400 uppercase">{exec.status}</span>
-                              </div>
-                              <p className="text-zinc-400 leading-normal">{exec.outputSummary}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Message Content */}
-                  <MarkdownMessage content={msg.content} />
-
-                  {/* Structured Findings Cards */}
-                  {!isUser && hasFindings && (
-                    <div className="pt-3 border-t border-white/[0.08] space-y-2.5">
-                      <span className="text-[10px] font-mono uppercase text-zinc-400 tracking-wider flex items-center space-x-1.5 font-bold">
-                        <Layers className="w-3 h-3 text-zinc-400" />
-                        <span>Structured Governance Findings:</span>
-                      </span>
-
-                      <div className="grid grid-cols-1 gap-2.5">
-                        {msg.structuredFindings!.map((f, i) => (
-                          <div
-                            key={i}
-                            className={`titanium-card p-3 rounded-xl border text-[11px] space-y-1.5 ${
-                              f.severity === 'critical'
-                                ? 'border-rose-500/40 bg-[#1c1215] text-rose-200'
-                                : f.severity === 'moderate'
-                                ? 'border-amber-500/40 bg-[#1e1712] text-amber-200'
-                                : 'bg-[#14151c] border-white/[0.08] text-zinc-200'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-white text-xs">{f.title}</span>
-                              <span className="text-[9px] uppercase px-1.5 py-0.5 rounded font-mono font-bold bg-zinc-900 border border-zinc-700">
-                                {f.severity}
-                              </span>
-                            </div>
-                            <p className="text-zinc-300 text-[11px] leading-relaxed">{f.details}</p>
-                            {f.evidenceCitation && (
-                              <p className="text-[10px] text-zinc-400 font-mono">
-                                📌 {f.evidenceCitation}
-                              </p>
-                            )}
-                            {f.recommendation && (
-                              <div className="pt-1.5 border-t border-white/[0.08] space-y-2">
-                                <p className="text-[10px] text-emerald-400 font-semibold">
-                                  💡 Suggestion: {f.recommendation}
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={() => handleSend(`Apply this recommendation to the active draft: ${f.recommendation}`)}
-                                  disabled={loading}
-                                  className="silver-btn text-[10px] font-bold px-3 py-1 rounded-lg cursor-pointer"
-                                >
-                                  Accept & apply recommendation
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-
-        {loading && (
-          <div className="flex justify-start">
-            <div className="titanium-card border border-white/[0.1] p-4 rounded-2xl rounded-tl-none max-w-md space-y-2 shadow-xl">
-              <div className="flex items-center space-x-2 text-xs text-zinc-200 font-mono font-semibold">
-                <Sparkles className="w-4 h-4 animate-spin text-white" />
-                <span>{activeAgentStatus}</span>
-              </div>
-              <p className="text-[11px] text-zinc-400 leading-relaxed">
-                Evaluating state graph, invoking registered LangChain tools, and querying verified facts...
-              </p>
+        {/* Search Input (visible when >= 3 sessions) */}
+        {sessionsList.length >= 3 && (
+          <div className="px-3 pt-2 pb-1">
+            <div className="relative">
+              <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                type="text"
+                value={searchSessionQuery}
+                onChange={(e) => setSearchSessionQuery(e.target.value)}
+                placeholder="Search chats..."
+                className="w-full bg-[#13141c] border border-white/[0.06] rounded-lg pl-7 pr-2 py-1.5 text-[11px] text-zinc-200 focus:outline-none focus:border-zinc-400 placeholder:text-zinc-600"
+              />
             </div>
           </div>
         )}
 
-        <div ref={messagesEndRef} />
-      </div>
+        {/* Sessions Scrollable Feed */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {filteredSessions.length === 0 ? (
+            <div className="p-4 text-center text-xs text-zinc-500">
+              {searchSessionQuery ? 'No matching chats' : 'No saved sessions'}
+            </div>
+          ) : (
+            filteredSessions.map((s) => {
+              const isActive = s.sessionId === currentSessionId;
+              const isEditing = editingSessionId === s.sessionId;
 
-      {/* Suggested Quick Action Chips */}
-      <div className="px-5 py-2.5 bg-[#121319] border-t border-white/[0.08] flex items-center space-x-2 overflow-x-auto text-xs no-scrollbar">
-        <span className="text-[10px] uppercase font-mono font-bold text-zinc-400 whitespace-nowrap">
-          Quick Prompts:
-        </span>
-        {quickPrompts.map((prompt, idx) => (
-          <button
-            key={idx}
-            onClick={() => handleSend(prompt)}
-            disabled={loading}
-            className="charcoal-btn whitespace-nowrap px-3.5 py-1.5 rounded-full text-[11px] font-medium transition cursor-pointer disabled:opacity-50"
-          >
-            {prompt.length > 50 ? `${prompt.substring(0, 48)}...` : prompt}
-          </button>
-        ))}
-      </div>
+              if (isEditing) {
+                return (
+                  <div
+                    key={s.sessionId}
+                    className="p-1.5 rounded-xl bg-[#161722] border border-zinc-400/60 flex items-center space-x-1 animate-in fade-in duration-150"
+                  >
+                    <input
+                      autoFocus
+                      type="text"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveRename(s.sessionId, e);
+                        if (e.key === 'Escape') handleCancelRename(e);
+                      }}
+                      className="flex-1 bg-transparent text-xs text-white px-2 py-1 focus:outline-none"
+                    />
+                    <button
+                      onClick={(e) => handleSaveRename(s.sessionId, e)}
+                      className="p-1 text-emerald-400 hover:text-emerald-300 rounded cursor-pointer"
+                      title="Save (Enter)"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => handleCancelRename(e)}
+                      className="p-1 text-zinc-400 hover:text-white rounded cursor-pointer"
+                      title="Cancel (Esc)"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              }
 
-      {/* File Attachment Preview Bar */}
-      {attachedFile && (
-        <div className="px-5 py-2 bg-[#181920] border-t border-white/[0.08] flex items-center justify-between text-xs text-zinc-200">
-          <div className="flex items-center space-x-2">
-            <FileText className="w-4 h-4 text-zinc-400" />
-            <span className="font-bold font-mono text-white">{attachedFile.name}</span>
-            <span className="text-[10px] text-zinc-400 font-mono">
-              ({(attachedFile.size / 1024).toFixed(1)} KB)
-            </span>
-          </div>
-          <button
-            onClick={() => setAttachedFile(null)}
-            className="text-zinc-400 hover:text-white p-1 cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+              return (
+                <div
+                  key={s.sessionId}
+                  onClick={() => setCurrentSessionId(s.sessionId)}
+                  className={`group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer transition-all border ${
+                    isActive
+                      ? 'bg-gradient-to-r from-zinc-800 to-zinc-900 border-white/[0.15] text-white shadow-sm font-semibold'
+                      : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2.5 min-w-0 flex-1 pr-1">
+                    <MessageSquare
+                      className={`w-3.5 h-3.5 flex-shrink-0 ${
+                        isActive ? 'text-blue-400' : 'text-zinc-500'
+                      }`}
+                    />
+                    <div className="truncate flex-1">
+                      <span className="truncate block">{s.title || 'Untitled Chat'}</span>
+                      <span className="text-[10px] text-zinc-500 block font-mono">
+                        {s.messageCount} msgs
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions: Rename & Delete */}
+                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => handleStartRename(s, e)}
+                      className="p-1 text-zinc-400 hover:text-white hover:bg-white/[0.1] rounded-md cursor-pointer transition"
+                      title="Rename Chat"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </button>
+                    {s.sessionId !== 'session_default' && (
+                      <button
+                        onClick={(e) => handleDeleteSession(s.sessionId, e)}
+                        className="p-1 text-zinc-400 hover:text-rose-400 hover:bg-white/[0.1] rounded-md cursor-pointer transition"
+                        title="Delete Chat"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
-      )}
 
-      {/* Input Box with Attachment Button */}
-      <div className="p-4 bg-[#101116] border-t border-white/[0.08]">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSend();
-          }}
-          className="flex items-center space-x-2"
-        >
-          {/* Hidden File Input for Attachment */}
-          <input
-            ref={chatFileInputRef}
-            type="file"
-            accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp"
-            onChange={handleChatFileSelect}
-            className="hidden"
-          />
+        {/* Sidebar Footer */}
+        <div className="p-3 border-t border-white/[0.06] bg-[#0c0d12] text-[10px] text-zinc-500 flex items-center justify-between font-mono">
+          <span>{sessionsList.length} Sessions</span>
+          <span className="text-zinc-600">Inkloom Graph v2</span>
+        </div>
+      </aside>
 
-          {/* Attachment Paperclip Button */}
-          <button
-            type="button"
-            onClick={() => chatFileInputRef.current?.click()}
-            disabled={loading}
-            className="charcoal-btn p-2.5 rounded-xl cursor-pointer disabled:opacity-50"
-            title="Attach document or creative image"
+      {/* =========================================================================
+          RIGHT MAIN CHATFEED & AGENTIC INTERFACE
+          ========================================================================= */}
+      <div className="flex-1 min-w-0 flex flex-col h-full bg-[#0c0d12]/60 relative">
+        {/* Header & Agent Status Bar */}
+        <div className="px-4 sm:px-5 py-3.5 border-b border-white/[0.08] bg-[#121319] flex items-center justify-between">
+          <div className="flex items-center space-x-3 min-w-0">
+            {/* Toggle Sidebar Button when closed */}
+            {!sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.08] cursor-pointer transition flex-shrink-0 border border-white/[0.06]"
+                title="Expand Conversations Sidebar"
+              >
+                <PanelLeftOpen className="w-4 h-4 text-zinc-200" />
+              </button>
+            )}
+
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600/70 text-white shadow-md flex-shrink-0">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+
+            <div className="min-w-0">
+              <div className="flex items-center space-x-2">
+                <h3 className="text-xs sm:text-sm font-bold text-white tracking-tight truncate max-w-[180px] sm:max-w-sm">
+                  {activeSessionObj?.title || 'Agentic AI Brand Guardian'}
+                </h3>
+                <span className="hidden md:inline-block text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700">
+                  LangGraph + Groq
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-400 flex items-center space-x-2 mt-0.5 font-medium truncate">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                <span className="truncate">
+                  Active Agent: <strong className="text-white font-bold">{activeAgentStatus}</strong>
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 flex-shrink-0">
+            {sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.08] cursor-pointer transition border border-white/[0.06] hidden sm:flex"
+                title="Collapse Sidebar"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
+            )}
+
+            <button
+              onClick={handleReset}
+              className="charcoal-btn text-xs px-3 py-1.5 rounded-xl transition flex items-center space-x-1.5 cursor-pointer"
+              title="Reset Conversation Session"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline font-semibold">Reset</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Message Feed */}
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+          {messages.map((msg) => {
+            const isUser = msg.role === 'user';
+            const hasTools = msg.toolExecutions && msg.toolExecutions.length > 0;
+            const hasFindings = msg.structuredFindings && msg.structuredFindings.length > 0;
+            const isExpanded = expandedTools[msg.id];
+
+            return (
+              <div key={msg.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[88%] md:max-w-[78%] space-y-1.5 ${isUser ? 'items-end' : 'items-start'}`}>
+                  {/* Author Label */}
+                  <div className={`flex items-center space-x-2 text-[11px] text-zinc-400 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                    {isUser ? (
+                      <>
+                        <span className="font-semibold text-zinc-300">You ({userRole})</span>
+                        <User className="w-3.5 h-3.5 text-zinc-400" />
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="w-3.5 h-3.5 text-zinc-400" />
+                        <span className="font-bold text-white">{msg.activeAgent || 'Brand Guardian'}</span>
+                      </>
+                    )}
+                    <span>•</span>
+                    <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+
+                  {/* Message Bubble in Titanium Palette */}
+                  <div
+                    className={`p-4 sm:p-5 rounded-2xl text-xs leading-relaxed shadow-lg ${
+                      isUser
+                        ? 'bg-gradient-to-b from-[#2b2d39] to-[#1c1d25] text-white rounded-tr-none border border-white/[0.15] shadow-md'
+                        : 'bg-[#121319] border border-white/[0.08] text-zinc-200 rounded-tl-none space-y-3.5 shadow-md'
+                    }`}
+                  >
+                    {/* Attached File Card */}
+                    {msg.attachment && (
+                      <div className="flex items-center space-x-2.5 rounded-xl border border-white/[0.1] bg-[#0c0d12] p-2.5 text-xs">
+                        {msg.attachment.type.includes('image') ? (
+                          <ImageIcon className="w-4 h-4 text-zinc-300 flex-shrink-0" />
+                        ) : (
+                          <FileText className="w-4 h-4 text-zinc-300 flex-shrink-0" />
+                        )}
+                        <div className="truncate">
+                          <p className="font-semibold text-white truncate">{msg.attachment.name}</p>
+                          <p className="text-[10px] text-zinc-400 font-mono">
+                            {(msg.attachment.size / 1024).toFixed(1)} KB • {msg.attachment.type}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tool Execution Transparency Accordion */}
+                    {!isUser && hasTools && (
+                      <div className="bg-[#0b0c10] border border-white/[0.08] rounded-xl p-3 space-y-2">
+                        <button
+                          onClick={() => toggleToolExpand(msg.id)}
+                          className="w-full flex items-center justify-between text-[11px] text-zinc-300 hover:text-white font-mono cursor-pointer"
+                        >
+                          <span className="flex items-center space-x-2 text-zinc-300 font-semibold">
+                            <Wrench className="w-3.5 h-3.5" />
+                            <span>{msg.toolExecutions!.length} Tool Call{msg.toolExecutions!.length > 1 ? 's' : ''} Executed</span>
+                          </span>
+                          {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-zinc-400" /> : <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />}
+                        </button>
+
+                        {isExpanded && (
+                          <div className="space-y-2 pt-2 border-t border-white/[0.06] text-[10px] font-mono">
+                            {msg.toolExecutions!.map((exec, idx) => (
+                              <div key={idx} className="bg-[#14151c] p-2.5 rounded-lg border border-white/[0.04] space-y-1">
+                                <div className="flex items-center justify-between text-zinc-200 font-bold">
+                                  <span>🔧 {exec.toolName}</span>
+                                  <span className="text-emerald-400 uppercase">{exec.status}</span>
+                                </div>
+                                <p className="text-zinc-400 leading-normal">{exec.outputSummary}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Message Content */}
+                    <MarkdownMessage content={msg.content} />
+
+                    {/* Structured Findings Cards */}
+                    {!isUser && hasFindings && (
+                      <div className="pt-3 border-t border-white/[0.08] space-y-2.5">
+                        <span className="text-[10px] font-mono uppercase text-zinc-400 tracking-wider flex items-center space-x-1.5 font-bold">
+                          <Layers className="w-3 h-3 text-zinc-400" />
+                          <span>Structured Governance Findings:</span>
+                        </span>
+
+                        <div className="grid grid-cols-1 gap-2.5">
+                          {msg.structuredFindings!.map((f, i) => (
+                            <div
+                              key={i}
+                              className={`titanium-card p-3 rounded-xl border text-[11px] space-y-1.5 ${
+                                f.severity === 'critical'
+                                  ? 'border-rose-500/40 bg-[#1c1215] text-rose-200'
+                                  : f.severity === 'moderate'
+                                  ? 'border-amber-500/40 bg-[#1e1712] text-amber-200'
+                                  : 'bg-[#14151c] border-white/[0.08] text-zinc-200'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-white text-xs">{f.title}</span>
+                                <span className="text-[9px] uppercase px-1.5 py-0.5 rounded font-mono font-bold bg-zinc-900 border border-zinc-700">
+                                  {f.severity}
+                                </span>
+                              </div>
+                              <p className="text-zinc-300 text-[11px] leading-relaxed">{f.details}</p>
+                              {f.evidenceCitation && (
+                                <p className="text-[10px] text-zinc-400 font-mono">
+                                  📌 {f.evidenceCitation}
+                                </p>
+                              )}
+                              {f.recommendation && (
+                                <div className="pt-1.5 border-t border-white/[0.08] space-y-2">
+                                  <p className="text-[10px] text-emerald-400 font-semibold">
+                                    💡 Suggestion: {f.recommendation}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSend(`Apply this recommendation to the active draft: ${f.recommendation}`)}
+                                    disabled={loading}
+                                    className="silver-btn text-[10px] font-bold px-3 py-1 rounded-lg cursor-pointer"
+                                  >
+                                    Accept & apply recommendation
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {loading && (
+            <div className="flex justify-start">
+              <div className="titanium-card border border-white/[0.1] p-4 rounded-2xl rounded-tl-none max-w-md space-y-2 shadow-xl">
+                <div className="flex items-center space-x-2 text-xs text-zinc-200 font-mono font-semibold">
+                  <Sparkles className="w-4 h-4 animate-spin text-white" />
+                  <span>{activeAgentStatus}</span>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  Evaluating state graph, invoking registered LangChain tools, and querying verified facts...
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Suggested Quick Action Chips */}
+        <div className="px-4 sm:px-5 py-2 bg-[#121319] border-t border-white/[0.08] flex items-center space-x-2 overflow-x-auto text-xs no-scrollbar">
+          <span className="text-[10px] uppercase font-mono font-bold text-zinc-400 whitespace-nowrap">
+            Quick Prompts:
+          </span>
+          {quickPrompts.map((prompt, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleSend(prompt)}
+              disabled={loading}
+              className="charcoal-btn whitespace-nowrap px-3 py-1.5 rounded-full text-[11px] font-medium transition cursor-pointer disabled:opacity-50"
+            >
+              {prompt.length > 50 ? `${prompt.substring(0, 48)}...` : prompt}
+            </button>
+          ))}
+        </div>
+
+        {/* File Attachment Preview Bar */}
+        {attachedFile && (
+          <div className="px-5 py-2 bg-[#181920] border-t border-white/[0.08] flex items-center justify-between text-xs text-zinc-200">
+            <div className="flex items-center space-x-2">
+              <FileText className="w-4 h-4 text-zinc-400" />
+              <span className="font-bold font-mono text-white">{attachedFile.name}</span>
+              <span className="text-[10px] text-zinc-400 font-mono">
+                ({(attachedFile.size / 1024).toFixed(1)} KB)
+              </span>
+            </div>
+            <button
+              onClick={() => setAttachedFile(null)}
+              className="text-zinc-400 hover:text-white p-1 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Input Box with Attachment Button */}
+        <div className="p-3 sm:p-4 bg-[#101116] border-t border-white/[0.08]">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSend();
+            }}
+            className="flex items-center space-x-2"
           >
-            <Paperclip className="w-4 h-4" />
-          </button>
+            {/* Hidden File Input for Attachment */}
+            <input
+              ref={chatFileInputRef}
+              type="file"
+              accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp"
+              onChange={handleChatFileSelect}
+              className="hidden"
+            />
 
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={loading}
-            placeholder={
-              attachedFile
-                ? `Attached "${attachedFile.name}" — Type instructions or press Send...`
-                : 'Ask anything about brand guidelines, verify claims, check WCAG contrast, or audit copy...'
-            }
-            className="flex-1 bg-[#0c0d12] border border-white/[0.08] rounded-xl px-4 py-3 text-xs sm:text-sm text-white focus:outline-none focus:border-zinc-400 transition disabled:opacity-50 shadow-inner"
-          />
+            {/* Attachment Paperclip Button */}
+            <button
+              type="button"
+              onClick={() => chatFileInputRef.current?.click()}
+              disabled={loading}
+              className="charcoal-btn p-2.5 rounded-xl cursor-pointer disabled:opacity-50 flex-shrink-0"
+              title="Attach document or creative image"
+            >
+              <Paperclip className="w-4 h-4" />
+            </button>
 
-          <button
-            type="submit"
-            disabled={(!input.trim() && !attachedFile) || loading}
-            className="silver-btn p-3 rounded-xl cursor-pointer disabled:opacity-50"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={loading}
+              placeholder={
+                attachedFile
+                  ? `Attached "${attachedFile.name}" — Type instructions or press Send...`
+                  : 'Ask anything about brand guidelines, verify claims, check WCAG contrast, or audit copy...'
+              }
+              className="flex-1 bg-[#0c0d12] border border-white/[0.08] rounded-xl px-4 py-3 text-xs sm:text-sm text-white focus:outline-none focus:border-zinc-400 transition disabled:opacity-50 shadow-inner"
+            />
+
+            <button
+              type="submit"
+              disabled={(!input.trim() && !attachedFile) || loading}
+              className="silver-btn p-3 rounded-xl cursor-pointer disabled:opacity-50 flex-shrink-0"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

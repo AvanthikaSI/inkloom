@@ -636,6 +636,16 @@ ${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text fo
       return jsonResponse({ success: true, item: updated });
     }
 
+    // 10b. Chat: Rename Session (POST /api/chat/sessions/:sessionId/rename)
+    if (slug[0] === 'chat' && slug[1] === 'sessions' && slug.length === 4 && slug[3] === 'rename') {
+      const sessionId = slug[2];
+      const body = await req.json().catch(() => ({}));
+      const title = String(body.title || '').trim();
+      if (!title) return jsonResponse({ success: false, error: 'Title is required' }, 400);
+      const session = await ChatRepository.renameSession(sessionId, title);
+      return jsonResponse({ success: !!session, session });
+    }
+
     // 11. Chat: Reset Session (POST /api/chat/reset/:sessionId)
     if (slug[0] === 'chat' && slug[1] === 'reset' && slug.length === 3) {
       const sessionId = slug[2];
@@ -683,6 +693,16 @@ export async function PATCH(
         item = await ContentRepository.update(contentId, updates);
       }
       return jsonResponse({ success: true, item });
+    }
+
+    // 0b. Chat: Rename Session (PATCH /api/chat/sessions/:sessionId)
+    if (slug[0] === 'chat' && slug[1] === 'sessions' && slug.length === 3) {
+      const sessionId = slug[2];
+      const body = await req.json().catch(() => ({}));
+      const title = String(body.title || '').trim();
+      if (!title) return jsonResponse({ success: false, error: 'Title is required' }, 400);
+      const session = await ChatRepository.renameSession(sessionId, title);
+      return jsonResponse({ success: !!session, session });
     }
 
     // 1. Audit: Update Violation Status (PATCH /api/audit/:contentId/violations/:violationId)

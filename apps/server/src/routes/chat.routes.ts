@@ -31,6 +31,8 @@ router.get('/sessions', ChatController.getSessions);
 router.get('/sessions/:sessionId', ChatController.getSession);
 router.post('/sessions', ChatController.createSession);
 router.delete('/sessions/:sessionId', ChatController.deleteSession);
+router.patch('/sessions/:sessionId', ChatController.renameSession);
+router.post('/sessions/:sessionId/rename', ChatController.renameSession);
 router.post('/message', upload.single('file'), ChatController.sendMessage);
 router.get('/history/:sessionId', ChatController.getHistory);
 router.post('/reset/:sessionId', ChatController.resetSession);
