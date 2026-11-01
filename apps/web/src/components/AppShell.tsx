@@ -1,16 +1,37 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { GovernanceProvider, useGovernance } from '../lib/governance-context';
 import { Navbar, DYNAMIC_ROLES } from './Navbar';
-import { ShieldCheck, Info, X, Cpu } from 'lucide-react';
+import { ShieldCheck, Info, X, Cpu, ArrowUp } from 'lucide-react';
 import { useBodyScrollLock } from '../lib/use-body-scroll-lock';
 
 function InnerAppShell({ children }: { children: React.ReactNode }) {
   const { userRole, setUserRole, complianceScore } = useGovernance();
   const [showAiDisclosure, setShowAiDisclosure] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const pathname = usePathname();
 
   useBodyScrollLock(showAiDisclosure);
+
+  // Automatically scroll to top on every route change across all pages
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [pathname]);
+
+  // Show floating Scroll to Top button when scrolled down
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 250);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="relative min-h-screen bg-[#07080c] text-zinc-100 flex flex-col selection:bg-blue-600/30 selection:text-white overflow-x-clip">
@@ -113,6 +134,18 @@ function InnerAppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Global Floating Scroll to Top Button for Every Page */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 z-40 flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-900/90 border border-white/20 text-white shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-xl hover:bg-zinc-800 hover:border-white/40 hover:scale-105 active:scale-95 transition-all cursor-pointer group animate-in fade-in zoom-in-95 duration-200"
+          title="Scroll to Top"
+          aria-label="Scroll to Top"
+        >
+          <ArrowUp className="w-5 h-5 group-hover:-translate-y-0.5 transition-transform" />
+        </button>
       )}
     </div>
   );

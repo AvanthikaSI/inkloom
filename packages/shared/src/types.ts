@@ -2,7 +2,7 @@
  * Inkloom AI Shared Domain Models & Types
  */
 
-export type UserRole = 'creator' | 'reviewer' | 'brand_manager' | 'admin';
+export type UserRole = 'creator' | 'reviewer' | 'brand_manager' | 'executive' | 'admin';
 
 export type ContentFormat = 'text_copy' | 'document_pdf' | 'document_docx' | 'image_creative';
 
