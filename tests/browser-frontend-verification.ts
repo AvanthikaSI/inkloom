@@ -92,7 +92,7 @@ async function runBrowserFrontendAudit() {
     // Endpoint 5: Brand Kit
     const bRes = await fetch(`${baseUrl}/api/knowledge/brand-kit`);
     const bData = await bRes.json();
-    console.log(`  ✅ /api/knowledge/brand-kit -> Brand: "${bData.brandKit?.brandName}" (${bData.brandKit?.primaryColors?.length} palette swatches)`);
+    console.log(`  ✅ /api/knowledge/brand-kit -> Brand: "${bData.brandKit?.kitName || bData.brandKit?.brandName}" (${bData.brandKit?.primaryColors?.length} palette swatches)`);
 
     // Endpoint 6: Audit Analysis (POST text)
     const auditRes = await fetch(`${baseUrl}/api/audit/analyze`, {
@@ -173,7 +173,7 @@ async function runBrowserFrontendAudit() {
     // Endpoint 12: Analytics Overview
     const anaRes = await fetch(`${baseUrl}/api/analytics/overview`);
     const anaData = await anaRes.json();
-    console.log(`  ✅ /api/analytics/overview -> Total audits: ${anaData.stats?.totalAudits}, Avg score: ${anaData.stats?.avgScore}`);
+    console.log(`  ✅ /api/analytics/overview -> Total audits: ${anaData.stats?.totalAudits}, Avg score: ${anaData.stats?.averageComplianceScore ?? anaData.stats?.avgScore}`);
 
     // Endpoint 13: Ambiguity Metrics
     const ambRes = await fetch(`${baseUrl}/api/analytics/ambiguity-metrics`);

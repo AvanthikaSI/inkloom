@@ -14,6 +14,9 @@ const nextConfig = {
     '@inkloom/vector-store',
     '@inkloom/langgraph-core'
   ],
+  experimental: {
+    serverComponentsExternalPackages: ['chromadb']
+  },
   async rewrites() {
     const rawBackendUrl = process.env.NEXT_PUBLIC_API_URL;
     if (rawBackendUrl && !rawBackendUrl.startsWith('/')) {
@@ -28,12 +31,13 @@ const nextConfig = {
     }
     return [];
   },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve.extensionAlias = {
       '.js': ['.ts', '.tsx', '.js', '.jsx']
     };
     config.resolve.alias = {
       ...config.resolve.alias,
+      '@chroma-core/default-embed': false,
       '@inkloom/shared': path.resolve(rootDir, 'packages/shared/src/index.ts'),
       '@inkloom/database': path.resolve(rootDir, 'packages/database/src/index.ts'),
       '@inkloom/vector-store': path.resolve(rootDir, 'packages/vector-store/src/index.ts'),

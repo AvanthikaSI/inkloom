@@ -71,7 +71,7 @@ export class PythonBridgeService {
 
     // Serverless Fallback: Provide synthetic inspection data based on standard brand swatches
     const colors = brandColors && brandColors.length > 0 ? brandColors : ['#0F172A', '#3B82F6', '#FFFFFF'];
-    const contrastChecks = [];
+    const contrastChecks: any[] = [];
     for (let i = 0; i < colors.length - 1; i++) {
       contrastChecks.push(this.computeLocalWcagContrast(colors[i], colors[i + 1]));
     }
