@@ -23,7 +23,7 @@
     "start:all": "node scripts/start-all.mjs",
     "start": "node scripts/start-all.mjs",
     "build:server": "esbuild apps/server/src/app.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=apps/server/dist/app.mjs && esbuild apps/server/src/index.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=apps/server/dist/index.mjs",
-    "build:web": "next build apps/web",
+    "build:web": "node scripts/clean-next.mjs && next build apps/web",
     "build": "npm run build:server && npm run build:web",
     "vercel-build": "npm run build:server && npm run build:web",
     "start:web": "next start apps/web -p 3000"
