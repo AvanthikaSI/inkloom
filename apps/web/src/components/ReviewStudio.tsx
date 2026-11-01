@@ -24,6 +24,7 @@ import {
   Eye
 } from 'lucide-react';
 import { runAuditText, runAuditFile, applySurgicalPatch, overrideWarning, type ChatDraftContext } from '../lib/api';
+import { useGovernance } from '../lib/governance-context';
 
 interface ReviewStudioProps {
   userRole: string;
@@ -50,14 +51,81 @@ const SAMPLE_PRESETS = [
   }
 ];
 
-export const ReviewStudio: React.FC<ReviewStudioProps> = ({ userRole, onAuditComplete, activeDraft, onActiveDraftChange }) => {
-  const [contentId, setContentId] = useState('content_demo_01');
-  const [title, setTitle] = useState('Inkloom AI Product Launch Press Release');
-  const [text, setText] = useState(SAMPLE_PRESETS[0].text);
+export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
+  userRole: propRole = 'creator',
+  onAuditComplete,
+  activeDraft,
+  onActiveDraftChange
+}) => {
+  let gov: any = null;
+  try {
+    gov = useGovernance();
+  } catch {}
+
+  const userRole = propRole || gov?.userRole || 'creator';
+
+  const [localContentId, setLocalContentId] = useState('content_demo_01');
+  const [localTitle, setLocalTitle] = useState('Inkloom AI Product Launch Press Release');
+  const [localText, setLocalText] = useState(SAMPLE_PRESETS[0].text);
+  const [localReport, setLocalReport] = useState<any>(null);
+  const [localActiveTab, setLocalActiveTab] = useState<'editor' | 'diff'>('editor');
+  const [localSuccessMessage, setLocalSuccessMessage] = useState('');
+
+  const contentId = gov ? gov.activeDraft.contentId : localContentId;
+  const setContentId = (id: string) => {
+    if (gov) {
+      gov.setActiveDraft({ ...gov.activeDraft, contentId: id });
+    } else {
+      setLocalContentId(id);
+    }
+  };
+
+  const title = gov ? gov.editorTitle : localTitle;
+  const setTitle = (t: string) => {
+    if (gov) {
+      gov.setEditorTitle(t);
+    } else {
+      setLocalTitle(t);
+    }
+  };
+
+  const text = gov ? gov.editorText : localText;
+  const setText = (txt: string) => {
+    if (gov) {
+      gov.setEditorText(txt);
+    } else {
+      setLocalText(txt);
+    }
+  };
+
+  const report = gov ? gov.activeReport : localReport;
+  const setReport = (rep: any) => {
+    if (gov) {
+      gov.setActiveReport(rep);
+    } else {
+      setLocalReport(rep);
+    }
+  };
+
+  const activeTab = gov ? gov.activeStudioTab : localActiveTab;
+  const setActiveTab = (tab: 'editor' | 'diff') => {
+    if (gov) {
+      gov.setActiveStudioTab(tab);
+    } else {
+      setLocalActiveTab(tab);
+    }
+  };
+
+  const successMessage = gov ? gov.successMessage : localSuccessMessage;
+  const setSuccessMessage = (msg: string) => {
+    if (gov) {
+      gov.setSuccessMessage(msg);
+    } else {
+      setLocalSuccessMessage(msg);
+    }
+  };
 
   const [loading, setLoading] = useState(false);
-  const [report, setReport] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'editor' | 'diff'>('editor');
   const [selectedViolation, setSelectedViolation] = useState<any>(null);
   const [overrideReason, setOverrideReason] = useState('');
   const [showOverrideModal, setShowOverrideModal] = useState(false);
@@ -65,7 +133,6 @@ export const ReviewStudio: React.FC<ReviewStudioProps> = ({ userRole, onAuditCom
   const [uploadSize, setUploadSize] = useState<string>('');
   const [uploadType, setUploadType] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -73,6 +140,9 @@ export const ReviewStudio: React.FC<ReviewStudioProps> = ({ userRole, onAuditCom
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const publishActiveDraft = (nextContentId = contentId, nextTitle = title, nextText = text) => {
+    if (gov) {
+      gov.setActiveDraft({ contentId: nextContentId, title: nextTitle, text: nextText });
+    }
     onActiveDraftChange?.({ contentId: nextContentId, title: nextTitle, text: nextText });
   };
 

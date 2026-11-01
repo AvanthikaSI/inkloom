@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import '../styles/globals.css';
+import { AppShell } from '../components/AppShell';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -37,7 +38,7 @@ export default function RootLayout({
             'linear-gradient(to bottom, #07090f 0%, #0a0e1a 30%, #0c1022 70%, #080c18 100%)',
         }}
       >
-        {children}
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

@@ -27,6 +27,8 @@ const upload = multer({
 const router = Router();
 
 router.post('/analyze', upload.single('file'), AuditController.analyze);
+router.get('/history', AuditController.getHistory);
+router.get('/history/:id', AuditController.getHistoricalReport);
 router.get('/:contentId', AuditController.getReport);
 router.patch('/:contentId/violations/:violationId', AuditController.updateViolation);
 

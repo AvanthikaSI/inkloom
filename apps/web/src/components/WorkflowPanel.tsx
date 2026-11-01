@@ -17,7 +17,7 @@ import {
   AlertCircle,
   FileCheck
 } from 'lucide-react';
-import { getComments, addComment, updateWorkflowStatus, getAuditLogs, getContent, sendChatMessage } from '../lib/api';
+import { getComments, addComment, updateWorkflowStatus, getAuditLogs, getContent, getAllContent, sendChatMessage } from '../lib/api';
 
 interface WorkflowPanelProps {
   userRole: string;
@@ -28,6 +28,8 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
   userRole,
   contentId = 'content_demo_01'
 }) => {
+  const [contentList, setContentList] = useState<any[]>([]);
+  const [activeId, setActiveId] = useState<string>(contentId);
   const [status, setStatus] = useState('draft');
   const [content, setContent] = useState<any>(null);
   const [comments, setComments] = useState<any[]>([]);
@@ -36,22 +38,32 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
   const [isAiConsulting, setIsAiConsulting] = useState(false);
 
   useEffect(() => {
-    loadWorkflow();
+    if (contentId && contentId !== activeId) {
+      setActiveId(contentId);
+    }
   }, [contentId]);
+
+  useEffect(() => {
+    loadWorkflow();
+  }, [activeId]);
 
   const loadWorkflow = async () => {
     try {
-      const [contentRes, cRes, lRes] = await Promise.all([
-        getContent(contentId),
-        getComments(contentId),
-        getAuditLogs(contentId)
+      const [contentRes, cRes, lRes, allRes] = await Promise.all([
+        getContent(activeId),
+        getComments(activeId),
+        getAuditLogs(activeId),
+        getAllContent()
       ]);
       if (contentRes.success && contentRes.item) {
         setContent(contentRes.item);
         setStatus(contentRes.item.status);
       }
-      if (cRes.success) setComments(cRes.comments);
-      if (lRes.success) setLogs(lRes.logs);
+      if (cRes.success) setComments(cRes.comments || []);
+      if (lRes.success) setLogs(lRes.logs || []);
+      if (allRes.success && Array.isArray(allRes.items)) {
+        setContentList(allRes.items);
+      }
     } catch (e) {
       console.error('Failed to load workflow data:', e);
     }
@@ -65,7 +77,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
           : userRole === 'reviewer'
           ? 'Marcus Vance'
           : 'Elena Rostova';
-      const res = await updateWorkflowStatus(contentId, newStatus, actorName, userRole);
+      const res = await updateWorkflowStatus(activeId, newStatus, actorName, userRole);
       if (res.success) {
         setStatus(newStatus);
         loadWorkflow();
@@ -88,7 +100,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
         : 'Elena Rostova';
 
     try {
-      const res = await addComment(contentId, text, authorName, userRole);
+      const res = await addComment(activeId, text, authorName, userRole);
       if (res.success) {
         setComments((prev) => [...prev, res.comment]);
         setNewComment('');
@@ -154,6 +166,21 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
             <p className="text-xs sm:text-sm text-zinc-400 max-w-2xl leading-relaxed">
               Role-based sign-offs tracking an immutable cryptographic audit log before any public distribution.
             </p>
+            <div className="pt-2 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-zinc-400 font-medium">Active Publication:</span>
+              <select
+                value={activeId}
+                onChange={(e) => setActiveId(e.target.value)}
+                className="rounded-xl border border-white/[0.15] bg-[#14151c] px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-zinc-400 cursor-pointer max-w-xs truncate"
+              >
+                {contentList.length === 0 && <option value={activeId}>{content?.title || activeId}</option>}
+                {contentList.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.title || item.id} [{(item.status || 'draft').toUpperCase()}]
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Action Buttons based on Role */}

@@ -131,3 +131,25 @@ CREATE TABLE IF NOT EXISTS guideline_ambiguity_metrics (
     ambiguity_friction_index NUMERIC DEFAULT 0.0,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id TEXT UNIQUE NOT NULL,
+    user_id UUID REFERENCES users(id),
+    title TEXT NOT NULL DEFAULT 'New Conversation',
+    active_draft JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id TEXT NOT NULL REFERENCES chat_sessions(session_id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+    content TEXT NOT NULL,
+    active_agent TEXT,
+    tool_executions JSONB,
+    structured_findings JSONB,
+    attachment JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);

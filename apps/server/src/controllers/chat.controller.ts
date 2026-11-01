@@ -1,10 +1,51 @@
 import { Request, Response } from 'express';
 import { agenticWorkflow, ToolExecutionRecord, StructuredFinding } from '@inkloom/langgraph-core';
-import { ContentRepository, inMemoryDb } from '@inkloom/database';
+import { ContentRepository, ChatRepository, inMemoryDb } from '@inkloom/database';
 import { ChatAttachment } from '@inkloom/shared';
 import { PythonBridgeService } from '../services/python-bridge.service.js';
 
 export class ChatController {
+  public static async getSessions(_req: Request, res: Response): Promise<void> {
+    try {
+      const sessions = await ChatRepository.getAllSessions();
+      res.json({ success: true, sessions });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+
+  public static async getSession(req: Request, res: Response): Promise<void> {
+    try {
+      const session = await ChatRepository.getSession(req.params.sessionId);
+      if (!session) {
+        res.status(404).json({ success: false, error: 'Chat session not found' });
+        return;
+      }
+      res.json({ success: true, session });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+
+  public static async createSession(req: Request, res: Response): Promise<void> {
+    try {
+      const { sessionId = `session_${Date.now()}`, title = 'New Conversation', activeDraft } = req.body || {};
+      const session = await ChatRepository.createSession(sessionId, title, activeDraft);
+      res.json({ success: true, session });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+
+  public static async deleteSession(req: Request, res: Response): Promise<void> {
+    try {
+      const deleted = await ChatRepository.deleteSession(req.params.sessionId);
+      res.json({ success: deleted });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+
   public static async sendMessage(req: Request, res: Response): Promise<void> {
     try {
       const { message, sessionId = 'session_default', userRole = 'creator', contentId, contentTitle, contentText } = req.body;

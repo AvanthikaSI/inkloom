@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   BarChart3,
+  RotateCw,
   AlertOctagon,
   TrendingUp,
   ShieldCheck,
@@ -50,9 +51,18 @@ export const AnalyticsDashboard: React.FC = () => {
             </h2>
           </div>
         </div>
-        <p className="text-xs sm:text-sm text-zinc-400 max-w-2xl leading-relaxed">
-          Aggregated violation patterns, team compliance velocity, and algorithmic guideline friction detection.
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <p className="text-xs sm:text-sm text-zinc-400 max-w-2xl leading-relaxed">
+            Aggregated violation patterns, team compliance velocity, and algorithmic guideline friction detection.
+          </p>
+          <button
+            onClick={loadAnalytics}
+            className="flex items-center space-x-2 rounded-xl border border-white/[0.1] bg-white/[0.05] hover:bg-white/[0.1] px-3.5 py-1.5 text-xs text-zinc-300 hover:text-white transition-all cursor-pointer self-start sm:self-auto font-medium"
+          >
+            <RotateCw className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Refresh Analytics</span>
+          </button>
+        </div>
       </div>
 
       {/* 4 Majestic Glass KPI Cards in Royal Titanium */}
@@ -67,7 +77,7 @@ export const AnalyticsDashboard: React.FC = () => {
           </div>
           <div className="flex items-baseline space-x-2">
             <span className="text-3xl font-extrabold font-mono text-emerald-400 tracking-tight">
-              {stats ? `${stats.averageComplianceScore}%` : '92%'}
+              {stats ? `${stats.averageComplianceScore}%` : '0%'}
             </span>
             <span className="text-[10px] text-emerald-400 font-bold flex items-center">
               <TrendingUp className="w-3 h-3 mr-0.5" />
@@ -87,7 +97,7 @@ export const AnalyticsDashboard: React.FC = () => {
           </div>
           <div className="flex items-baseline space-x-2">
             <span className="text-3xl font-extrabold font-mono text-white tracking-tight">
-              {stats ? stats.totalAudits : 18}
+              {stats ? stats.totalAudits : 0}
             </span>
             <span className="text-[10px] text-zinc-400 font-bold">multi-modal scans</span>
           </div>
@@ -104,7 +114,7 @@ export const AnalyticsDashboard: React.FC = () => {
           </div>
           <div className="flex items-baseline space-x-2">
             <span className="text-3xl font-extrabold font-mono text-white tracking-tight">
-              {stats ? stats.activeGuidelines : 3}
+              {stats ? stats.activeGuidelines : 0}
             </span>
             <span className="text-[10px] text-zinc-400 font-medium">guidelines active</span>
           </div>
@@ -121,7 +131,7 @@ export const AnalyticsDashboard: React.FC = () => {
           </div>
           <div className="flex items-baseline space-x-2">
             <span className="text-3xl font-extrabold font-mono text-white tracking-tight">
-              {stats ? stats.verifiedFactsCount : 3}
+              {stats ? stats.verifiedFactsCount : 0}
             </span>
             <span className="text-[10px] text-zinc-400 font-medium">facts verified</span>
           </div>
@@ -208,27 +218,40 @@ export const AnalyticsDashboard: React.FC = () => {
         <h3 className="text-sm font-bold text-white mb-4 tracking-tight">
           Historical Non-Compliance Distribution by Category
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3.5">
-          {[
-            { label: 'Tone Drift', count: 4, color: 'bg-zinc-200' },
-            { label: 'Banned Terms', count: 6, color: 'bg-zinc-400' },
-            { label: 'Unsupported Claims', count: 3, color: 'bg-rose-500' },
-            { label: 'Factual Inaccuracy', count: 1, color: 'bg-rose-600' },
-            { label: 'Visual Inconsistency', count: 2, color: 'bg-zinc-500' },
-            { label: 'WCAG Contrast', count: 2, color: 'bg-amber-500' }
-          ].map((cat) => (
-            <div
-              key={cat.label}
-              className="titanium-card p-3.5 rounded-xl text-center space-y-2 shadow-inner"
-            >
-              <span className="text-[11px] text-zinc-400 block truncate font-medium">{cat.label}</span>
-              <span className="text-xl font-extrabold font-mono text-white block">{cat.count}</span>
-              <div className="w-full bg-black h-1.5 rounded-full overflow-hidden border border-white/[0.06]">
-                <div className={`h-full ${cat.color} rounded-full`} style={{ width: `${cat.count * 16}%` }} />
-              </div>
+        {(() => {
+          const dist = stats?.categoryDistribution || {};
+          const catConfig = [
+            { label: 'Tone Drift', key: 'tone', color: 'bg-blue-400' },
+            { label: 'Banned Terms', key: 'terminology', color: 'bg-zinc-300' },
+            { label: 'Unsupported Claims', key: 'unsupported_claim', color: 'bg-rose-500' },
+            { label: 'Factual Inaccuracy', key: 'factual_inaccuracy', color: 'bg-rose-600' },
+            { label: 'Visual Inconsistency', key: 'visual_inconsistency', color: 'bg-purple-500' },
+            { label: 'WCAG Contrast', key: 'accessibility', color: 'bg-amber-500' }
+          ];
+          const totalViolations = catConfig.reduce((acc, c) => acc + (Number(dist[c.key]) || 0), 0) || 1;
+
+          return (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3.5">
+              {catConfig.map((cat) => {
+                const count = Number(dist[cat.key]) || 0;
+                const pct = Math.min(100, Math.round((count / totalViolations) * 100));
+                return (
+                  <div
+                    key={cat.label}
+                    className="titanium-card p-3.5 rounded-xl text-center space-y-2 shadow-inner"
+                  >
+                    <span className="text-[11px] text-zinc-400 block truncate font-medium">{cat.label}</span>
+                    <span className="text-xl font-extrabold font-mono text-white block">{count}</span>
+                    <div className="w-full bg-black h-1.5 rounded-full overflow-hidden border border-white/[0.06]">
+                      <div className={`h-full ${cat.color} rounded-full`} style={{ width: `${Math.max(5, pct)}%` }} />
+                    </div>
+                    <span className="text-[9px] font-mono text-zinc-400 block">{pct}% of total</span>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          );
+        })()}
       </div>
     </div>
   );

@@ -7,3 +7,4 @@ export * from './repositories/content.repo.js';
 export * from './repositories/audit.repo.js';
 export * from './repositories/workflow.repo.js';
 export * from './repositories/analytics.repo.js';
+export * from './repositories/chat.repo.js';

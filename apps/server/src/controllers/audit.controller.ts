@@ -69,6 +69,28 @@ export class AuditController {
     }
   }
 
+  public static async getHistory(_req: Request, res: Response): Promise<void> {
+    try {
+      const history = await AuditRepository.getAllReports();
+      res.json({ success: true, history });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+
+  public static async getHistoricalReport(req: Request, res: Response): Promise<void> {
+    try {
+      const report = await AuditRepository.getReportById(req.params.id);
+      if (!report) {
+        res.status(404).json({ success: false, error: 'Historical audit report not found' });
+        return;
+      }
+      res.json({ success: true, report });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+
   public static async getReport(req: Request, res: Response): Promise<void> {
     try {
       const contentId = String(req.params.contentId);

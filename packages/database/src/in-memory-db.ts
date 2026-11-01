@@ -30,6 +30,7 @@ class InMemoryDatabase {
   public brandKits: Map<string, VisualBrandKit> = new Map();
   public contentItems: Map<string, ContentItem> = new Map();
   public auditReports: Map<string, AuditReport> = new Map();
+  public allAuditReports: Map<string, AuditReport> = new Map();
   public reviewComments: Map<string, ReviewComment[]> = new Map();
   public auditLogs: Map<string, AuditLogEntry[]> = new Map();
   public ambiguityMetrics: Map<string, GuidelineAmbiguityMetric> = new Map();
@@ -49,6 +50,7 @@ class InMemoryDatabase {
       brandKits: Array.from(this.brandKits.values()),
       contentItems: Array.from(this.contentItems.values()),
       auditReports: Array.from(this.auditReports.values()),
+      allAuditReports: Array.from(this.allAuditReports.values()),
       reviewComments: Array.from(this.reviewComments.entries()),
       auditLogs: Array.from(this.auditLogs.entries()),
       ambiguityMetrics: Array.from(this.ambiguityMetrics.values()),
@@ -80,6 +82,12 @@ class InMemoryDatabase {
       this.restoreMap(this.brandKits, state.brandKits);
       this.restoreMap(this.contentItems, state.contentItems);
       this.restoreMap(this.auditReports, state.auditReports, 'contentId');
+      this.restoreMap(this.allAuditReports, state.allAuditReports, 'id');
+      if (this.allAuditReports.size === 0 && this.auditReports.size > 0) {
+        for (const report of Array.from(this.auditReports.values())) {
+          this.allAuditReports.set(report.id || `rep_${Date.now()}`, report);
+        }
+      }
       this.restoreMap(this.reviewComments, state.reviewComments, undefined, true);
       this.restoreMap(this.auditLogs, state.auditLogs, undefined, true);
       this.restoreMap(this.ambiguityMetrics, state.ambiguityMetrics, 'guidelineId');

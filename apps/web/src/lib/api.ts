@@ -250,3 +250,37 @@ export async function resetChatSession(sessionId: string = 'session_default') {
     method: 'POST'
   });
 }
+
+export async function getAllContent() {
+  return apiFetch('/content');
+}
+
+export async function fetchAuditHistory() {
+  return apiFetch('/audit/history');
+}
+
+export async function fetchHistoricalReport(reportId: string) {
+  return apiFetch(`/audit/history/${reportId}`);
+}
+
+export async function fetchChatSessions() {
+  return apiFetch('/chat/sessions');
+}
+
+export async function fetchChatSession(sessionId: string) {
+  return apiFetch(`/chat/sessions/${sessionId}`);
+}
+
+export async function createChatSession(sessionId?: string, title?: string, activeDraft?: ChatDraftContext) {
+  return apiFetch('/chat/sessions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId, title, activeDraft })
+  });
+}
+
+export async function deleteChatSession(sessionId: string) {
+  return apiFetch(`/chat/sessions/${sessionId}`, {
+    method: 'DELETE'
+  });
+}

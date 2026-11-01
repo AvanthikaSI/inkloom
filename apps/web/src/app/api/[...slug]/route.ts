@@ -10,6 +10,7 @@ import {
   GuidelineRepository,
   FactRepository,
   TerminologyRepository,
+  ChatRepository,
   inMemoryDb,
   checkSupabaseConnection
 } from '@inkloom/database';
@@ -119,10 +120,36 @@ export async function GET(
     }
 
     // 8. Audit: Get Report by Content ID
-    if (slug[0] === 'audit' && slug.length === 2 && slug[1] !== 'analyze') {
+    if (slug[0] === 'audit' && slug.length === 2 && slug[1] !== 'analyze' && slug[1] !== 'history') {
       const report = await AuditRepository.getLatestReportByContentId(slug[1]);
       if (!report) return jsonResponse({ success: false, error: 'Report not found' }, 404);
       return jsonResponse({ success: true, report });
+    }
+
+    // 8a. Audit: History list
+    if (route === 'audit/history') {
+      const history = await AuditRepository.getAllReports();
+      return jsonResponse({ success: true, history });
+    }
+
+    // 8b. Audit: Specific historical report
+    if (slug[0] === 'audit' && slug[1] === 'history' && slug.length === 3) {
+      const report = await AuditRepository.getReportById(slug[2]);
+      if (!report) return jsonResponse({ success: false, error: 'Historical audit report not found' }, 404);
+      return jsonResponse({ success: true, report });
+    }
+
+    // 8c. Chat: List Sessions
+    if (route === 'chat/sessions') {
+      const sessions = await ChatRepository.getAllSessions();
+      return jsonResponse({ success: true, sessions });
+    }
+
+    // 8d. Chat: Get single session
+    if (slug[0] === 'chat' && slug[1] === 'sessions' && slug.length === 3) {
+      const session = await ChatRepository.getSession(slug[2]);
+      if (!session) return jsonResponse({ success: false, error: 'Chat session not found' }, 404);
+      return jsonResponse({ success: true, session });
     }
 
     // 9. Workflow: Comments
@@ -275,6 +302,15 @@ export async function POST(
       const report = await AuditRunnerService.runAudit(item, filePath);
       const refreshedItem = await ContentRepository.getById(item.id);
       return jsonResponse({ success: true, contentItem: refreshedItem || item, report });
+    }
+
+    // Create or Register Chat Session (POST /api/chat/sessions)
+    if (route === 'chat/sessions') {
+      const body = await req.json().catch(() => ({}));
+      const sessionId = body.sessionId || `session_${Date.now()}`;
+      const title = body.title || 'New Conversation';
+      const session = await ChatRepository.createSession(sessionId, title, body.activeDraft);
+      return jsonResponse({ success: true, session });
     }
 
     // 2. Chat: Send Message (POST /api/chat/message)
@@ -642,6 +678,23 @@ export async function PATCH(
       return jsonResponse({ success: true, violation: updated });
     }
 
+    return jsonResponse({ success: false, error: `Endpoint not found: /api/${slug.join('/')}` }, 404);
+  } catch (err: any) {
+    return jsonResponse({ success: false, error: err?.message || 'Internal Server Error' }, 500);
+  }
+}
+
+// ==================== DELETE HANDLER ====================
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { slug: string[] } }
+) {
+  const slug = params.slug || [];
+  try {
+    if (slug[0] === 'chat' && slug[1] === 'sessions' && slug.length === 3) {
+      const deleted = await ChatRepository.deleteSession(slug[2]);
+      return jsonResponse({ success: deleted });
+    }
     return jsonResponse({ success: false, error: `Endpoint not found: /api/${slug.join('/')}` }, 404);
   } catch (err: any) {
     return jsonResponse({ success: false, error: err?.message || 'Internal Server Error' }, 500);
