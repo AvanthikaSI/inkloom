@@ -65,6 +65,7 @@ export const ReviewStudio: React.FC<ReviewStudioProps> = ({ userRole, onAuditCom
   const [uploadSize, setUploadSize] = useState<string>('');
   const [uploadType, setUploadType] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -88,6 +89,7 @@ export const ReviewStudio: React.FC<ReviewStudioProps> = ({ userRole, onAuditCom
     }
     setLoading(true);
     setErrorMessage('');
+    setSuccessMessage('');
     try {
       const res = await runAuditText(text, title, contentId);
       if (res.success) {
@@ -131,6 +133,14 @@ export const ReviewStudio: React.FC<ReviewStudioProps> = ({ userRole, onAuditCom
         }
         publishActiveDraft(res.contentItem.id, resolvedTitle, res.contentItem.rawText || text);
       }
+      setActiveTab('editor');
+      const wordCountExtracted = res.contentItem?.rawText
+        ? res.contentItem.rawText.split(/\s+/).filter(Boolean).length
+        : 0;
+      const violationCount = res.report?.violations?.length || 0;
+      setSuccessMessage(
+        `Successfully extracted ${wordCountExtracted.toLocaleString()} words from "${file.name}". Multi-agent audit completed with ${violationCount} diagnostic findings.`
+      );
       onAuditComplete?.(res.report);
     } catch (e: any) {
       setErrorMessage(e.message || 'Multi-modal file ingestion failed. Accepted formats: PDF, DOCX, TXT, PNG, JPG, WEBP.');
@@ -262,6 +272,23 @@ export const ReviewStudio: React.FC<ReviewStudioProps> = ({ userRole, onAuditCom
           <button
             onClick={() => setErrorMessage('')}
             className="text-rose-400 hover:text-white p-1"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Success Alert Bar */}
+      {successMessage && (
+        <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/40 bg-[#101c15] p-4 text-xs text-emerald-200 animate-in fade-in duration-200">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-400" />
+          <div className="flex-1">
+            <p className="font-semibold text-emerald-300">Document Extraction & Audit Complete</p>
+            <p className="text-zinc-300 mt-0.5">{successMessage}</p>
+          </div>
+          <button
+            onClick={() => setSuccessMessage('')}
+            className="text-emerald-400 hover:text-white p-1"
           >
             <X className="h-4 w-4" />
           </button>

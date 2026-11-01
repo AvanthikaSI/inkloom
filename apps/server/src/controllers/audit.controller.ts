@@ -37,7 +37,8 @@ export class AuditController {
           status: 'draft'
         });
       } else if (text !== undefined) {
-        const updates: Record<string, string> = { rawText: text };
+        const updates: Record<string, any> = { rawText: text };
+        if (title) updates.title = title;
         if (file) {
           updates.assetFileUrl = file.path;
           updates.contentFormat = AuditController.getContentFormat(file, format);
@@ -48,13 +49,14 @@ export class AuditController {
         item.status = 'draft';
       } else if (file) {
         const contentFormat = AuditController.getContentFormat(file, format);
-        await ContentRepository.update(item.id, {
+        const updates: Record<string, any> = {
           assetFileUrl: file.path,
           contentFormat
-        });
+        };
+        if (title) updates.title = title;
+        await ContentRepository.update(item.id, updates);
         await ContentRepository.updateStatus(item.id, 'draft');
-        item.assetFileUrl = file.path;
-        item.contentFormat = contentFormat as typeof item.contentFormat;
+        Object.assign(item, updates);
         item.status = 'draft';
       }
 

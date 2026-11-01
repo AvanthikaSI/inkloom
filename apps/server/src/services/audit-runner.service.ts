@@ -39,6 +39,7 @@ export class AuditRunnerService {
         if (docRes.success && docRes.data && docRes.data.text) {
           textToAnalyze = docRes.data.text;
           await ContentRepository.update(contentItem.id, { rawText: textToAnalyze });
+          contentItem.rawText = textToAnalyze;
         }
       }
     }

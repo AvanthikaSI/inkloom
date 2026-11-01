@@ -12,14 +12,14 @@
   },
   "dependencies": {
     "@inkloom/shared": "file:../../packages/shared",
+    "adm-zip": "^0.5.16",
     "clsx": "^2.1.1",
     "lucide-react": "^1.61.0",
     "next": "^14.2.35",
+    "pdf-parse": "1.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^3.7.0",
-    "pdf-parse": "^2.4.5",
-    "adm-zip": "^0.5.16",
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {

@@ -37,101 +37,26 @@ export class PythonBridgeService {
     // 1. PDF: Extracts the exact words from the PDF, discarding any embedded images
     if (ext === '.pdf') {
       try {
-        const { PDFParse } = await import('pdf-parse');
         const buf = fs.readFileSync(filePath);
-        const parser = new (PDFParse as any)({ data: buf, url: filePath });
-        const textObj = await parser.getText();
-        const clean = (textObj?.text || '').trim();
+        // Load lib/pdf-parse directly to bypass index.js debug mode check
+        const pdfParseModule = await import('pdf-parse/lib/pdf-parse.js');
+        const pdfParse = (pdfParseModule as any).default || pdfParseModule;
+        const data = await pdfParse(buf);
+        const clean = (data?.text || '').trim();
         if (clean.length > 0) {
           return {
             success: true,
             data: {
               text: clean,
               format: 'pdf',
-              page_count: textObj?.pages?.length || 1,
+              page_count: data?.numpages || 1,
               char_count: clean.length,
               word_count: clean.split(/\s+/).filter(Boolean).length
             }
           };
         }
       } catch (pdfErr: any) {
-        console.warn('[Inkloom Parser] PDFParse error, trying stream extractor:', pdfErr?.message);
-      }
-
-      // Secondary zero-dependency pure-TS fallback using built-in zlib
-      try {
-        const zlib = await import('zlib');
-        const buf = fs.readFileSync(filePath);
-        const content = buf.toString('binary');
-        const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
-        let match;
-        const cmaps = new Map<number, string>();
-        const rawStreams: string[] = [];
-
-        while ((match = streamRegex.exec(content)) !== null) {
-          try {
-            const decompressed = zlib.inflateSync(Buffer.from(match[1], 'binary')).toString('latin1');
-            rawStreams.push(decompressed);
-            if (decompressed.includes('beginbfrange') || decompressed.includes('beginbfchar')) {
-              const bfrangeMatches = decompressed.match(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g) || [];
-              for (const m of bfrangeMatches) {
-                const parts = m.match(/<([0-9a-fA-F]+)>/g);
-                if (parts && parts.length === 3) {
-                  const start = parseInt(parts[0].slice(1, -1), 16);
-                  const end = parseInt(parts[1].slice(1, -1), 16);
-                  const target = parseInt(parts[2].slice(1, -1), 16);
-                  for (let code = start; code <= end; code++) {
-                    cmaps.set(code, String.fromCodePoint(target + (code - start)));
-                  }
-                }
-              }
-              const bfcharMatches = decompressed.match(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g) || [];
-              for (const m of bfcharMatches) {
-                const parts = m.match(/<([0-9a-fA-F]+)>/g);
-                if (parts && parts.length === 2) {
-                  const code = parseInt(parts[0].slice(1, -1), 16);
-                  const target = parseInt(parts[1].slice(1, -1), 16);
-                  cmaps.set(code, String.fromCodePoint(target));
-                }
-              }
-            }
-          } catch {}
-        }
-
-        const extracted: string[] = [];
-        for (const s of rawStreams) {
-          if (!s.includes('BT') || !s.includes('ET')) continue;
-          const tjMatches = s.match(/\((.*?)\)\s*Tj/g) || [];
-          for (const m of tjMatches) {
-            extracted.push(m.replace(/^\(/, '').replace(/\)\s*Tj$/, ''));
-          }
-          const hexMatches = s.match(/<([0-9a-fA-F]+)>\s*Tj/g) || [];
-          for (const m of hexMatches) {
-            const hexStr = m.replace(/^</, '').replace(/>\s*Tj$/, '');
-            const step = hexStr.length % 4 === 0 ? 4 : 2;
-            let word = '';
-            for (let i = 0; i < hexStr.length; i += step) {
-              const val = parseInt(hexStr.substring(i, i + step), 16);
-              word += cmaps.get(val) || (val >= 32 && val <= 126 ? String.fromCharCode(val) : '');
-            }
-            if (word.trim()) extracted.push(word);
-          }
-        }
-
-        const streamClean = extracted.join(' ').replace(/\s+/g, ' ').trim();
-        if (streamClean.length > 50) {
-          return {
-            success: true,
-            data: {
-              text: streamClean,
-              format: 'pdf',
-              char_count: streamClean.length,
-              word_count: streamClean.split(/\s+/).filter(Boolean).length
-            }
-          };
-        }
-      } catch (streamErr: any) {
-        console.warn('[Inkloom Parser] Native stream extractor fallback failed:', streamErr?.message);
+        console.warn('[Inkloom Parser] PDF extraction warning:', pdfErr?.message);
       }
     }
 

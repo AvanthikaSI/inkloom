@@ -325,23 +325,26 @@ export async function POST(
       }
 
       let effectiveMessage = message;
+      let extractedDocText = '';
       if (filePath && attachmentInfo) {
         if (attachmentInfo.type.startsWith('image/')) {
           const imgAudit = await PythonBridgeService.auditImage(filePath, ['#0F172A', '#3B82F6', '#FFFFFF', '#64748B']);
+          extractedDocText = (imgAudit.data?.ocr_text || '').trim();
           const colorList = imgAudit.data?.dominant_colors?.map((c: any) => `${c.hex || c} (${c.percentage || ''}%)`).join(', ') || 'N/A';
           const contrastStatus = imgAudit.data?.contrast_checks?.map((c: any) => `${c.foreground} on ${c.background}: ${c.contrast_ratio}:1 (${c.status})`).join('; ') || 'N/A';
+          const ocrSection = extractedDocText ? `\nExtracted Image Text (OCR): "${extractedDocText}"` : '';
           const imgContext = `[Attached Creative Image: "${attachmentInfo.name}" (${imgAudit.data?.metadata?.width || 0}x${imgAudit.data?.metadata?.height || 0}px)]
 Dominant Palette: ${colorList}
-WCAG Contrast Diagnostics: ${contrastStatus}`;
+WCAG Contrast Diagnostics: ${contrastStatus}${ocrSection}`;
           effectiveMessage = effectiveMessage
             ? `${imgContext}\n\nUser Question/Instruction: ${effectiveMessage}`
             : `${imgContext}\n\nPlease audit this creative image asset for brand color adherence and WCAG contrast accessibility.`;
         } else {
           const docRes = await PythonBridgeService.parseDocument(filePath);
-          const docText = docRes.success && docRes.data?.text ? docRes.data.text : '';
+          extractedDocText = docRes.success && docRes.data?.text ? docRes.data.text : '';
           const docContext = `[Attached Document: "${attachmentInfo.name}"]
 Extracted Document Content:
-${docText ? docText.slice(0, 10000) : '[No extractable text found or empty document]'}`;
+${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text found or empty document]'}`;
           effectiveMessage = effectiveMessage
             ? `${docContext}\n\nUser Question/Instruction: ${effectiveMessage}`
             : `${docContext}\n\nPlease audit this document copy against official brand guidelines, fact matrix, and tone rules.`;
@@ -356,16 +359,21 @@ ${docText ? docText.slice(0, 10000) : '[No extractable text found or empty docum
 
       if (contentId) {
         const existingDraft = await ContentRepository.getById(contentId);
-        if (existingDraft && (contentText !== undefined || contentTitle !== undefined)) {
+        const resolvedText = extractedDocText || (contentText ?? existingDraft?.rawText);
+        const resolvedTitle = attachmentInfo?.name
+          ? attachmentInfo.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ')
+          : (contentTitle || existingDraft?.title);
+
+        if (existingDraft && (resolvedText !== undefined || resolvedTitle !== undefined)) {
           await ContentRepository.update(contentId, {
-            ...(contentText !== undefined ? { rawText: contentText } : {}),
-            ...(contentTitle ? { title: contentTitle } : {})
+            ...(resolvedText !== undefined ? { rawText: resolvedText } : {}),
+            ...(resolvedTitle ? { title: resolvedTitle } : {})
           });
         }
         session.activeDraft = {
           contentId,
-          title: contentTitle || existingDraft?.title,
-          text: contentText ?? existingDraft?.rawText
+          title: resolvedTitle,
+          text: resolvedText
         };
       }
 
