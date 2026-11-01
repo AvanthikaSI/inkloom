@@ -5,12 +5,11 @@ import { AgenticChat } from '../../components/AgenticChat';
 import { useGovernance } from '../../lib/governance-context';
 
 export default function ChatPage() {
-  const { userRole, activeDraft, setActiveDraft } = useGovernance();
+  const { userRole, activeDraft } = useGovernance();
   return (
     <AgenticChat
       userRole={userRole}
       activeDraft={activeDraft}
-      onActiveDraftChange={setActiveDraft}
     />
   );
 }

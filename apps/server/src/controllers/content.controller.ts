@@ -47,6 +47,33 @@ export class ContentController {
   /**
    * Improvement 3: Intent-Preserving Surgical Diff Patch Application
    */
+  public static async update(req: Request, res: Response): Promise<void> {
+    try {
+      const id = String(req.params.id);
+      const { title, rawText, status } = req.body;
+      const updates: Record<string, any> = {};
+      if (typeof title === 'string') updates.title = title;
+      if (typeof rawText === 'string') updates.rawText = rawText;
+      if (typeof status === 'string') updates.status = status;
+      let item = await ContentRepository.getById(id);
+      if (!item) {
+        item = await ContentRepository.create({
+          orgId: 'org_inkloom_01',
+          authorId: 'usr_creator_01',
+          authorName: 'Sarah Jenkins',
+          title: title || 'Draft Publication',
+          contentFormat: 'text_copy',
+          rawText: rawText || '',
+          status: status || 'draft'
+        });
+      } else if (Object.keys(updates).length > 0) {
+        item = await ContentRepository.update(id, updates);
+      }
+      res.json({ success: true, item });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
   public static async applyPatch(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);

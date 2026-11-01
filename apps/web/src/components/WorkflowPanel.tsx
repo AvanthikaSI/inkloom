@@ -15,9 +15,12 @@ import {
   Shield,
   ArrowRight,
   AlertCircle,
-  FileCheck
+  FileCheck,
+  Edit
 } from 'lucide-react';
-import { getComments, addComment, updateWorkflowStatus, getAuditLogs, getContent, getAllContent, sendChatMessage } from '../lib/api';
+import Link from 'next/link';
+import { getComments, addComment, updateWorkflowStatus, getAuditLogs, getContent, getAllContent, updateContent, sendChatMessage } from '../lib/api';
+import { useGovernance } from '../lib/governance-context';
 
 interface WorkflowPanelProps {
   userRole: string;
@@ -28,6 +31,11 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
   userRole,
   contentId = 'content_demo_01'
 }) => {
+  let gov: any = null;
+  try {
+    gov = useGovernance();
+  } catch {}
+  const effectiveRole = userRole || gov?.userRole || "creator";
   const [contentList, setContentList] = useState<any[]>([]);
   const [activeId, setActiveId] = useState<string>(contentId);
   const [status, setStatus] = useState('draft');
@@ -56,8 +64,30 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
         getAllContent()
       ]);
       if (contentRes.success && contentRes.item) {
+        if (gov?.activeDraft?.contentId === activeId && gov.activeDraft.text && contentRes.item.rawText !== gov.activeDraft.text) {
+          try {
+            await updateContent(activeId, {
+              rawText: gov.activeDraft.text,
+              title: gov.activeDraft.title || contentRes.item.title
+            });
+            contentRes.item.rawText = gov.activeDraft.text;
+            if (gov.activeDraft.title) contentRes.item.title = gov.activeDraft.title;
+          } catch {}
+        }
         setContent(contentRes.item);
         setStatus(contentRes.item.status);
+      } else if (gov?.activeDraft?.contentId === activeId && gov.activeDraft.text) {
+        try {
+          const created = await updateContent(activeId, {
+            rawText: gov.activeDraft.text,
+            title: gov.activeDraft.title || "Draft Publication",
+            status: "draft"
+          });
+          if (created.success && created.item) {
+            setContent(created.item);
+            setStatus(created.item.status || "draft");
+          }
+        } catch {}
       }
       if (cRes.success) setComments(cRes.comments || []);
       if (lRes.success) setLogs(lRes.logs || []);
@@ -72,12 +102,14 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
   const handleStatusChange = async (newStatus: string) => {
     try {
       const actorName =
-        userRole === 'creator'
+        effectiveRole === 'creator'
           ? 'Sarah Jenkins'
-          : userRole === 'reviewer'
+          : effectiveRole === 'reviewer'
           ? 'Marcus Vance'
-          : 'Elena Rostova';
-      const res = await updateWorkflowStatus(activeId, newStatus, actorName, userRole);
+          : effectiveRole === 'brand_manager'
+          ? 'Elena Rostova'
+          : 'David Zhao';
+      const res = await updateWorkflowStatus(activeId, newStatus, actorName, effectiveRole);
       if (res.success) {
         setStatus(newStatus);
         loadWorkflow();
@@ -93,14 +125,16 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
     if (!text) return;
 
     const authorName =
-      userRole === 'creator'
+      effectiveRole === 'creator'
         ? 'Sarah Jenkins'
-        : userRole === 'reviewer'
+        : effectiveRole === 'reviewer'
         ? 'Marcus Vance'
-        : 'Elena Rostova';
+        : effectiveRole === 'brand_manager'
+        ? 'Elena Rostova'
+        : 'David Zhao';
 
     try {
-      const res = await addComment(activeId, text, authorName, userRole);
+      const res = await addComment(activeId, text, authorName, effectiveRole);
       if (res.success) {
         setComments((prev) => [...prev, res.comment]);
         setNewComment('');
@@ -114,7 +148,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
       ) {
         setIsAiConsulting(true);
         const aiQuery = text.replace(/@ai|@inkloom|ask:/gi, '').trim() || text;
-        const aiRes = await sendChatMessage(aiQuery, `session_workflow_${contentId}`, userRole);
+        const aiRes = await sendChatMessage(aiQuery, `session_workflow_${activeId}`, effectiveRole);
 
         if (aiRes.success) {
           const aiComment = await addComment(
@@ -149,6 +183,9 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
   const currentStepIndex = status === 'changes_requested' ? 1 : steps.findIndex((s) => s.id === status);
 
+  const displayedText = content?.rawText || (gov?.activeDraft?.contentId === activeId ? gov.activeDraft.text : "") || "";
+  const displayedTitle = content?.title || (gov?.activeDraft?.contentId === activeId ? gov.activeDraft.title : "") || "Inkloom AI Product Launch Press Release";
+  const wordCount = displayedText ? displayedText.trim().split(/\s+/).filter(Boolean).length : 0;
   return (
     <div className="space-y-6">
       {/* Workflow Bar & Stepper in Titanium Palette */}
@@ -184,26 +221,28 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
           </div>
 
           {/* Action Buttons based on Role */}
-          <div className="flex items-center space-x-3">
-            {(status === 'draft' || status === 'changes_requested') && userRole === 'creator' && (
+          <div className="flex flex-wrap items-center gap-3">
+            {/* 1. Creator submission buttons */}
+            {(status === "draft" || status === "changes_requested") && effectiveRole === "creator" && (
               <button
-                onClick={() => handleStatusChange('in_review')}
-                className="silver-btn text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer"
+                onClick={() => handleStatusChange("in_review")}
+                className="silver-btn text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer shadow-md active:scale-95 transition"
               >
-                {status === 'changes_requested' ? 'Resubmit for Sign-Off Review' : 'Submit for Sign-Off Review'}
+                {status === "changes_requested" ? "Resubmit for Sign-Off Review" : "Submit for Sign-Off Review"}
               </button>
             )}
 
-            {status === 'in_review' && userRole !== 'creator' && (
+            {/* 2. Reviewer / Brand Guardian / Executive review buttons */}
+            {status === "in_review" && effectiveRole !== "creator" && (
               <>
                 <button
-                  onClick={() => handleStatusChange('changes_requested')}
-                  className="charcoal-btn text-amber-400 text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer"
+                  onClick={() => handleStatusChange("changes_requested")}
+                  className="charcoal-btn text-amber-400 hover:text-amber-300 text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer transition shadow-md active:scale-95"
                 >
                   Request Changes
                 </button>
                 <button
-                  onClick={() => handleStatusChange('approved')}
+                  onClick={() => handleStatusChange("approved")}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition flex items-center space-x-1.5 cursor-pointer shadow-md active:scale-95"
                 >
                   <ShieldCheck className="w-4 h-4" />
@@ -212,19 +251,57 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
               </>
             )}
 
-            {status === 'approved' && userRole === 'brand_manager' && (
+            {/* 3. Publication authorization */}
+            {status === "approved" && (effectiveRole === "brand_manager" || effectiveRole === "executive") && (
               <button
-                onClick={() => handleStatusChange('published')}
-                className="silver-btn text-xs font-extrabold px-6 py-2.5 rounded-xl cursor-pointer"
+                onClick={() => handleStatusChange("published")}
+                className="silver-btn text-xs font-extrabold px-6 py-2.5 rounded-xl cursor-pointer shadow-md active:scale-95 transition"
               >
                 Authorize Live Publication
               </button>
             )}
 
-            {status === 'published' && (
+            {/* 4. Live published certified pill */}
+            {status === "published" && (
               <div className="flex items-center space-x-2 text-xs font-bold text-emerald-400 bg-emerald-950/60 px-4 py-2 rounded-xl border border-emerald-500/40">
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Publication Live & Certified</span>
+              </div>
+            )}
+
+            {/* 5. Informative status pills for non-acting roles */}
+            {status === "draft" && effectiveRole !== "creator" && (
+              <div className="flex items-center space-x-2 text-xs text-zinc-400 bg-[#121319] px-3.5 py-2 rounded-xl border border-white/[0.08]">
+                <Clock className="w-4 h-4 text-amber-400" />
+                <span>Awaiting Submission by Creator ({content?.authorName || "Sarah Jenkins"})</span>
+              </div>
+            )}
+
+            {status === "in_review" && effectiveRole === "creator" && (
+              <div className="flex items-center space-x-2 text-xs text-sky-400 bg-sky-950/40 px-3.5 py-2 rounded-xl border border-sky-500/30">
+                <Clock className="w-4 h-4 animate-spin text-sky-400" />
+                <span>Submitted — Under Sign-Off Review</span>
+              </div>
+            )}
+
+            {status === "changes_requested" && effectiveRole !== "creator" && (
+              <div className="flex items-center space-x-2 text-xs text-amber-400 bg-amber-950/40 px-3.5 py-2 rounded-xl border border-amber-500/30">
+                <AlertCircle className="w-4 h-4 text-amber-400" />
+                <span>Changes Requested — Awaiting Creator Revision</span>
+              </div>
+            )}
+
+            {status === "approved" && effectiveRole === "creator" && (
+              <div className="flex items-center space-x-2 text-xs text-emerald-400 bg-emerald-950/40 px-3.5 py-2 rounded-xl border border-emerald-500/30">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Brand Signed-Off — Pending Live Publication</span>
+              </div>
+            )}
+
+            {status === "approved" && effectiveRole === "reviewer" && (
+              <div className="flex items-center space-x-2 text-xs text-emerald-400 bg-emerald-950/40 px-3.5 py-2 rounded-xl border border-emerald-500/30">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Signed-Off — Awaiting Guardian Publication Release</span>
               </div>
             )}
           </div>
@@ -285,33 +362,53 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold text-white">Submitted Draft</h3>
-              <p className="text-[10px] text-zinc-400">Read-only content preview for sign-off</p>
+              <p className="text-[10px] text-zinc-400">Synchronized draft preview for multi-stakeholder review</p>
             </div>
           </div>
-          {content?.contentFormat && (
+          <div className="flex items-center space-x-2">
+            {effectiveRole === "creator" && (
+              <Link
+                href="/studio"
+                className="charcoal-btn text-[11px] font-semibold px-3 py-1 rounded-lg text-zinc-300 hover:text-white flex items-center space-x-1 cursor-pointer"
+              >
+                <Edit className="w-3 h-3 text-zinc-400" />
+                <span>Edit in Review Studio</span>
+              </Link>
+            )}
             <span className="text-[10px] font-mono uppercase text-zinc-400 bg-zinc-800 px-2.5 py-1 rounded-md border border-white/[0.08]">
-              {content.contentFormat.replace('_', ' ')}
+              {content?.contentFormat ? content.contentFormat.replace("_", " ") : "TEXT COPY"}
             </span>
-          )}
+          </div>
         </div>
 
-        {content ? (
+        {displayedText ? (
           <div className="mt-4 space-y-3">
-            {status === 'changes_requested' && userRole === 'creator' && (
+            {status === "changes_requested" && effectiveRole === "creator" && (
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-950/30 px-3.5 py-3 text-xs text-amber-100">
                 <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" />
                 <div>
                   <p className="font-bold">Reviewer requested changes</p>
                   <p className="mt-1 text-[11px] leading-relaxed text-amber-200/80">
-                    Review the feedback below, update this draft, and resubmit it for sign-off.
+                    Review the feedback below, update this draft in Review Studio, and resubmit it for sign-off.
                   </p>
                 </div>
               </div>
             )}
-            <h4 className="text-base font-bold text-white">{content.title || 'Untitled Draft'}</h4>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+              <h4 className="text-base font-bold text-white">{displayedTitle}</h4>
+              <div className="text-[11px] font-mono text-zinc-400 flex items-center space-x-2">
+                <span>Author: <strong className="text-zinc-200">{content?.authorName || "Sarah Jenkins"}</strong></span>
+                <span>•</span>
+                <span>{wordCount} words</span>
+                <span>•</span>
+                <span className="capitalize font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-white/[0.06]">
+                  {status.replace("_", " ")}
+                </span>
+              </div>
+            </div>
             <div className="max-h-80 overflow-y-auto rounded-xl border border-white/[0.08] bg-[#0c0d12] p-4">
-              <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-zinc-200">
-                {content.rawText || 'This draft does not contain readable text.'}
+              <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-zinc-200 font-mono">
+                {displayedText}
               </p>
             </div>
           </div>

@@ -242,7 +242,7 @@ You can ask me questions, test promotional claims, or upload documents and creat
     try {
       const res = await sendChatMessage(textToSend, currentSessionId, userRole, currentFile, activeDraft);
       if (res.success) {
-        if (res.activeDraft?.contentId) onActiveDraftChange?.(res.activeDraft);
+        // Isolated chat: do not overwrite active editor draft
         const assistantMsg: Message = {
           id: `asst_${Date.now()}`,
           role: 'assistant',

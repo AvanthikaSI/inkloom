@@ -395,21 +395,11 @@ ${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text fo
 
       if (contentId) {
         const existingDraft = await ContentRepository.getById(contentId);
-        const resolvedText = extractedDocText || (contentText ?? existingDraft?.rawText);
-        const resolvedTitle = attachmentInfo?.name
-          ? attachmentInfo.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ')
-          : (contentTitle || existingDraft?.title);
-
-        if (existingDraft && (resolvedText !== undefined || resolvedTitle !== undefined)) {
-          await ContentRepository.update(contentId, {
-            ...(resolvedText !== undefined ? { rawText: resolvedText } : {}),
-            ...(resolvedTitle ? { title: resolvedTitle } : {})
-          });
-        }
+        // Provide draft as read-only context for the agent without mutating the database
         session.activeDraft = {
           contentId,
-          title: resolvedTitle,
-          text: resolvedText
+          title: contentTitle || existingDraft?.title || 'Draft Document',
+          text: contentText || existingDraft?.rawText || ''
         };
       }
 
@@ -669,6 +659,32 @@ export async function PATCH(
   const slug = params.slug || [];
 
   try {
+    // 0. Content: Update Content (PATCH /api/content/:id)
+    if (slug[0] === 'content' && slug.length === 2) {
+      const contentId = slug[1];
+      const body = await req.json().catch(() => ({}));
+      const updates: Record<string, any> = {};
+      if (typeof body.rawText === 'string') updates.rawText = body.rawText;
+      if (typeof body.title === 'string') updates.title = body.title;
+      if (typeof body.status === 'string') updates.status = body.status;
+
+      let item = await ContentRepository.getById(contentId);
+      if (!item) {
+        item = await ContentRepository.create({
+          orgId: 'org_inkloom_01',
+          authorId: 'usr_creator_01',
+          authorName: 'Sarah Jenkins',
+          title: body.title || 'Draft Publication',
+          contentFormat: 'text_copy',
+          rawText: body.rawText || '',
+          status: body.status || 'draft'
+        });
+      } else if (Object.keys(updates).length > 0) {
+        item = await ContentRepository.update(contentId, updates);
+      }
+      return jsonResponse({ success: true, item });
+    }
+
     // 1. Audit: Update Violation Status (PATCH /api/audit/:contentId/violations/:violationId)
     if (slug[0] === 'audit' && slug.length === 4 && slug[2] === 'violations') {
       const contentId = slug[1];

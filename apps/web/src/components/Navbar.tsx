@@ -213,14 +213,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               ))}
             </div>
           </div>
-
-          {/* Compliance Score Pill if audit active */}
-          {complianceScore !== undefined && (
-            <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-2xl border border-emerald-500/30 bg-emerald-950/40 text-emerald-300 text-xs font-mono font-bold shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Score: {complianceScore}%</span>
-            </div>
-          )}
         </div>
 
         {/* Mobile Hamburger Toggle */}

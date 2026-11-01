@@ -85,6 +85,14 @@ export async function getContent(contentId: string) {
   return apiFetch(`/content/${contentId}`);
 }
 
+export async function updateContent(contentId: string, data: { rawText?: string; title?: string; status?: string }) {
+  return apiFetch(`/content/${contentId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+}
+
 export async function runAudit(formData: FormData) {
   return apiFetch('/audit/analyze', {
     method: 'POST',

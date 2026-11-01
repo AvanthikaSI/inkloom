@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Sparkles,
   AlertTriangle,
@@ -20,10 +21,11 @@ import {
   X,
   Gauge,
   SlidersHorizontal,
+  GitPullRequest,
   ChevronRight,
   Eye
 } from 'lucide-react';
-import { runAuditText, runAuditFile, applySurgicalPatch, overrideWarning, type ChatDraftContext } from '../lib/api';
+import { runAuditText, runAuditFile, applySurgicalPatch, overrideWarning, updateContent, updateWorkflowStatus, type ChatDraftContext } from '../lib/api';
 import { useGovernance } from '../lib/governance-context';
 
 interface ReviewStudioProps {
@@ -64,6 +66,7 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
 
   const userRole = propRole || gov?.userRole || 'creator';
 
+  const router = useRouter();
   const [localContentId, setLocalContentId] = useState('content_demo_01');
   const [localTitle, setLocalTitle] = useState('Inkloom AI Product Launch Press Release');
   const [localText, setLocalText] = useState(SAMPLE_PRESETS[0].text);
@@ -152,6 +155,28 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
     if (activeDraft.text !== undefined && activeDraft.text !== text) setText(activeDraft.text);
   }, [activeDraft, contentId, text, title]);
 
+  const handleSubmitForWorkflow = async () => {
+    if (!text.trim()) {
+      setErrorMessage('Please enter or paste content before submitting for review.');
+      return;
+    }
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      await updateContent(contentId, { rawText: text, title, status: 'in_review' });
+      await updateWorkflowStatus(contentId, 'in_review', 'Sarah Jenkins', 'creator');
+      publishActiveDraft(contentId, title, text);
+      if (gov) {
+        gov.setSuccessMessage(`Draft "${title || contentId}" submitted for Sign-Off Review!`);
+      }
+      router.push('/workflow');
+    } catch (e: any) {
+      console.error('Failed to submit for workflow:', e);
+      setErrorMessage(e?.message || 'Failed to submit draft to workflow.');
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleRunAudit = async () => {
     if (!text.trim()) {
       setErrorMessage('Please enter or paste content into the draft editor before running an audit.');
@@ -502,6 +527,7 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
                       setTitle(preset.title);
                       setText(preset.text);
                       publishActiveDraft(contentId, preset.title, preset.text);
+                      updateContent(contentId, { rawText: preset.text, title: preset.title }).catch(() => {});
                     }}
                     className="charcoal-btn px-2.5 py-1 rounded-md text-[11px] whitespace-nowrap cursor-pointer"
                   >
@@ -523,6 +549,7 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
                   rows={10}
                   className="w-full bg-[#0c0d12] border border-white/[0.08] rounded-xl p-4 text-xs sm:text-sm font-mono text-zinc-100 leading-relaxed focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 transition-all resize-none shadow-inner"
                   placeholder="Paste or write promotional copy, press releases, newsletters, or brand content here..."
+                  onBlur={() => { if (text.trim()) updateContent(contentId, { rawText: text, title }).catch(() => {}); }}
                 />
 
                 {/* Footer Metrics & Action Button */}
@@ -535,14 +562,27 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
                     <span>~{readingTime} min read</span>
                   </div>
 
-                  <button
-                    onClick={handleRunAudit}
-                    disabled={loading}
-                    className="silver-btn flex items-center justify-center space-x-2 text-xs px-6 py-2.5 rounded-xl cursor-pointer disabled:opacity-50"
-                  >
-                    <Sparkles className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                    <span>{loading ? 'Executing LangGraph Multi-Agent Audit...' : 'Audit with Inkloom AI'}</span>
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handleSubmitForWorkflow}
+                      disabled={loading}
+                      className="charcoal-btn hover:border-white/40 flex items-center justify-center space-x-1.5 text-xs px-4 py-2.5 rounded-xl cursor-pointer text-white font-semibold transition shadow-md active:scale-95"
+                      title="Submit this draft to the Multi-Stakeholder Sign-Off pipeline"
+                    >
+                      <GitPullRequest className="w-4 h-4 text-emerald-400" />
+                      <span>Submit for Review</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
+                    </button>
+
+                    <button
+                      onClick={handleRunAudit}
+                      disabled={loading}
+                      className="silver-btn flex items-center justify-center space-x-2 text-xs px-6 py-2.5 rounded-xl cursor-pointer disabled:opacity-50"
+                    >
+                      <Sparkles className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                      <span>{loading ? "Executing LangGraph Multi-Agent Audit..." : "Audit with Inkloom AI"}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -563,6 +603,32 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
                   <p className="text-[11px] leading-relaxed">
                     Click <strong className="text-white">"Accept Surgical Patch"</strong> on any diagnostic card on the right to surgically update this copy in place without altering your brand tone.
                   </p>
+                </div>
+
+                {/* Diff Action Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-white/[0.06]">
+                  <div className="text-xs text-zinc-400 font-mono">
+                    <span>{wordCount} words</span> • <span>{text.length} chars</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handleSubmitForWorkflow}
+                      disabled={loading}
+                      className="charcoal-btn hover:border-white/40 flex items-center justify-center space-x-1.5 text-xs px-4 py-2.5 rounded-xl cursor-pointer text-white font-semibold transition shadow-md active:scale-95"
+                    >
+                      <GitPullRequest className="w-4 h-4 text-emerald-400" />
+                      <span>Submit for Review</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
+                    </button>
+                    <button
+                      onClick={handleRunAudit}
+                      disabled={loading}
+                      className="silver-btn flex items-center justify-center space-x-2 text-xs px-5 py-2.5 rounded-xl cursor-pointer disabled:opacity-50"
+                    >
+                      <Sparkles className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                      <span>Re-Audit Draft</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

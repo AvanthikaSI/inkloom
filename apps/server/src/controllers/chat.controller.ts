@@ -107,22 +107,11 @@ ${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text fo
         const draftText = typeof contentText === 'string' ? contentText : undefined;
         const draftTitle = typeof contentTitle === 'string' ? contentTitle : undefined;
         const existingDraft = await ContentRepository.getById(requestedContentId);
-        const resolvedText = extractedDocText || (draftText ?? existingDraft?.rawText);
-        const resolvedTitle = file?.originalname
-          ? file.originalname.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ')
-          : (draftTitle || existingDraft?.title);
-
-        if (existingDraft && (resolvedText !== undefined || resolvedTitle !== undefined)) {
-          await ContentRepository.update(requestedContentId, {
-            ...(resolvedText !== undefined ? { rawText: resolvedText } : {}),
-            ...(resolvedTitle ? { title: resolvedTitle } : {})
-          });
-        }
-
+        // Provide draft as read-only context for the agent without mutating the database
         session.activeDraft = {
           contentId: requestedContentId,
-          title: resolvedTitle,
-          text: resolvedText
+          title: draftTitle || existingDraft?.title || 'Draft Document',
+          text: draftText || existingDraft?.rawText || ''
         };
       }
 
