@@ -9,11 +9,11 @@
 
 body {
   color: rgb(var(--foreground));
-  background: #0b0c10;
+  background: #08090d;
   background-image: 
-    radial-gradient(at 20% 0%, rgba(255, 255, 255, 0.05) 0px, transparent 50%),
-    radial-gradient(at 80% 15%, rgba(161, 161, 170, 0.04) 0px, transparent 45%),
-    radial-gradient(at 50% 100%, rgba(255, 255, 255, 0.03) 0px, transparent 60%);
+    radial-gradient(at 15% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+    radial-gradient(at 85% 10%, rgba(139, 92, 246, 0.06) 0px, transparent 45%),
+    radial-gradient(at 50% 100%, rgba(59, 130, 246, 0.05) 0px, transparent 60%);
   background-attachment: fixed;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   overflow-x: hidden;
@@ -34,19 +34,61 @@ button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 2px solid #a1a1aa;
+  outline: 2px solid #60a5fa;
   outline-offset: 2px;
 }
 
-/* Royal Titanium & Charcoal Luxury Panels */
+/* =========================================================================
+   LUXURIOUS GLASSMORPHISM & SPECULAR TITANIUM UTILITIES
+   ========================================================================= */
+
+/* Top-level edge-to-edge glossy glass header */
+.glass-header {
+  background: rgba(10, 12, 18, 0.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Glossy Floating Glass Panels */
+.glass-panel {
+  background: linear-gradient(180deg, rgba(26, 29, 40, 0.75) 0%, rgba(14, 16, 24, 0.85) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+/* Interactive Glass Cards with Specular Highlight on Hover */
+.glass-card {
+  background: linear-gradient(180deg, rgba(30, 34, 48, 0.6) 0%, rgba(16, 18, 26, 0.75) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  background: linear-gradient(180deg, rgba(38, 43, 62, 0.75) 0%, rgba(20, 23, 34, 0.85) 100%);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 
+    0 16px 45px rgba(0, 0, 0, 0.65), 
+    0 0 25px rgba(59, 130, 246, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Royal Titanium Panel */
 .titanium-panel {
-  background: linear-gradient(180deg, #181920 0%, #101116 100%);
+  background: linear-gradient(180deg, #181a24 0%, #10121a 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 20px 45px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .titanium-card {
-  background: linear-gradient(180deg, #1e2029 0%, #13141a 100%);
+  background: linear-gradient(180deg, #1e212d 0%, #13151f 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -54,22 +96,22 @@ select:focus-visible {
 
 .titanium-card:hover {
   border-color: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(255, 255, 255, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(59, 130, 246, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.16);
   transform: translateY(-2px);
 }
 
-/* Silver Metallic Button */
+/* Luxurious Silver Metallic Button */
 .silver-btn {
   background: linear-gradient(180deg, #ffffff 0%, #d4d4d8 100%);
   color: #09090b;
   font-weight: 700;
-  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.15), inset 0 1px 0 #ffffff;
-  transition: all 0.25s ease;
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2), inset 0 1px 0 #ffffff;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .silver-btn:hover {
   background: linear-gradient(180deg, #ffffff 0%, #e4e4e7 100%);
-  box-shadow: 0 6px 22px rgba(255, 255, 255, 0.25), inset 0 1px 0 #ffffff;
+  box-shadow: 0 6px 24px rgba(255, 255, 255, 0.35), 0 0 15px rgba(255, 255, 255, 0.2), inset 0 1px 0 #ffffff;
   transform: translateY(-1px);
 }
 
@@ -77,9 +119,9 @@ select:focus-visible {
   transform: translateY(1px);
 }
 
-/* Charcoal Metallic Button */
+/* Charcoal Metallic Button with Glass Sheen */
 .charcoal-btn {
-  background: linear-gradient(180deg, #27272a 0%, #18181b 100%);
+  background: linear-gradient(180deg, rgba(45, 48, 62, 0.8) 0%, rgba(24, 26, 36, 0.9) 100%);
   color: #f4f4f5;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -87,30 +129,47 @@ select:focus-visible {
 }
 
 .charcoal-btn:hover {
-  background: linear-gradient(180deg, #3f3f46 0%, #27272a 100%);
-  border-color: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  background: linear-gradient(180deg, rgba(62, 67, 88, 0.9) 0%, rgba(32, 35, 48, 0.95) 100%);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55), 0 0 18px rgba(59, 130, 246, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.18);
   transform: translateY(-1px);
 }
 
-/* Custom Titanium Scrollbar */
+/* Specular Glow Animation for Tab Transitions */
+@keyframes tabGlow {
+  0% {
+    box-shadow: 0 0 0 rgba(59, 130, 246, 0);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(59, 130, 246, 0.35);
+  }
+  100% {
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+  }
+}
+
+.tab-active-glow {
+  animation: tabGlow 0.4s ease-out forwards;
+}
+
+/* Custom Titanium & Glass Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0e0f14;
+  background: #08090d;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
+  background: #2a2d3c;
   border-radius: 9999px;
-  border: 1px solid #18181b;
+  border: 1px solid #141622;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #71717a;
+  background: #4b526d;
 }
 
 .no-scrollbar {

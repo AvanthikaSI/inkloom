@@ -66,6 +66,8 @@ export const ReviewStudio: React.FC<ReviewStudioProps> = ({ userRole, onAuditCom
   const [uploadType, setUploadType] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,6 +82,10 @@ export const ReviewStudio: React.FC<ReviewStudioProps> = ({ userRole, onAuditCom
   }, [activeDraft, contentId, text, title]);
 
   const handleRunAudit = async () => {
+    if (!text.trim()) {
+      setErrorMessage('Please enter or paste content into the draft editor before running an audit.');
+      return;
+    }
     setLoading(true);
     setErrorMessage('');
     try {
@@ -228,6 +234,13 @@ export const ReviewStudio: React.FC<ReviewStudioProps> = ({ userRole, onAuditCom
       setErrorMessage(e.message || 'Failed to record override justification.');
     }
   };
+
+  const dynamicCategories: string[] = ['all', ...Array.from(new Set(report?.violations?.map((v: any) => v.category) || [])) as string[]];
+  const visibleViolations = report?.violations?.filter((v: any) => {
+    const matchesCat = categoryFilter === 'all' || v.category === categoryFilter;
+    const matchesStatus = statusFilter === 'all' || v.status === statusFilter;
+    return matchesCat && matchesStatus;
+  }) || [];
 
   const wordCount = text.split(/\s+/).filter(Boolean).length;
   const readingTime = Math.ceil(wordCount / 200);
@@ -533,6 +546,32 @@ export const ReviewStudio: React.FC<ReviewStudioProps> = ({ userRole, onAuditCom
               </span>
             </div>
 
+            {/* Dynamic Filter Pills */}
+            {report && report.violations.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5 pb-2 border-b border-white/[0.06]">
+                {dynamicCategories.map((cat: string) => {
+                  const count = cat === 'all' 
+                    ? report.violations.length 
+                    : report.violations.filter((v: any) => v.category === cat).length;
+                  const isActive = categoryFilter === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setCategoryFilter(cat)}
+                      className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-sm border border-blue-400'
+                          : 'bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-700/80 border border-white/[0.06]'
+                      }`}
+                    >
+                      {cat.replace('_', ' ')} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Violation List */}
             <div className="mt-4 space-y-3.5 max-h-[600px] overflow-y-auto pr-1">
               {!report ? (
@@ -560,7 +599,7 @@ export const ReviewStudio: React.FC<ReviewStudioProps> = ({ userRole, onAuditCom
                   </div>
                 </div>
               ) : (
-                report.violations.map((violation: any) => {
+                visibleViolations.map((violation: any) => {
                   const isAccepted = violation.status === 'accepted';
                   const isRejected = violation.status === 'rejected';
 

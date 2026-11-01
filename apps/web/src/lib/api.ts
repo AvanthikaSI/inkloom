@@ -1,36 +1,103 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-
 export interface ChatDraftContext {
   contentId: string;
   title?: string;
   text?: string;
 }
 
+export function getApiBaseUrl(): string {
+  // 1. Explicit environment variable (Option B: separate backend deployment)
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl && envUrl.trim().length > 0) {
+    return envUrl.replace(/\/+$/, '');
+  }
+
+  // 2. Client-side browser runtime (Option A: Same Project & Domain)
+  if (typeof window !== 'undefined') {
+    return '/api';
+  }
+
+  // 3. SSR / build-time fallback
+  return '/api';
+}
+
+async function apiFetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const base = getApiBaseUrl();
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${base}${cleanEndpoint}`;
+
+  try {
+    const res = await fetch(url, options);
+    const contentType = res.headers.get('content-type') || '';
+
+    // If server responded with valid JSON
+    if (contentType.includes('application/json')) {
+      const data = await res.json();
+      if (!res.ok && data && typeof data === 'object' && !('error' in data)) {
+        data.error = `Server responded with HTTP ${res.status}`;
+      }
+      return data;
+    }
+
+    // If server responded with HTML (e.g. 404 / 500 error page from Vercel/Next)
+    const rawText = await res.text();
+    const isHtml = rawText.trim().startsWith('<') || rawText.includes('<!DOCTYPE') || rawText.includes('<html');
+
+    if (isHtml) {
+      let friendlyError = '';
+      if (res.status === 404) {
+        friendlyError = `Endpoint "${cleanEndpoint}" not found on ${base}. If deploying frontend and backend in separate Vercel projects, make sure NEXT_PUBLIC_API_URL is set to your backend deployment URL (e.g. https://your-backend.vercel.app/api).`;
+      } else if (res.status >= 500) {
+        friendlyError = `Backend server encountered an error (${res.status} ${res.statusText}). Check backend logs in Vercel.`;
+      } else {
+        friendlyError = `Server returned an HTML response instead of JSON (${res.status} ${res.statusText}).`;
+      }
+
+      return {
+        success: false,
+        error: friendlyError,
+        status: res.status
+      } as unknown as T;
+    }
+
+    // Attempt parsing as JSON in case content-type was omitted
+    try {
+      return JSON.parse(rawText);
+    } catch {
+      return {
+        success: false,
+        error: rawText || `HTTP ${res.status} error`
+      } as unknown as T;
+    }
+  } catch (err: any) {
+    const msg = err?.message || 'Network request failed';
+    return {
+      success: false,
+      error: `Network error: ${msg}. Check that the backend server is reachable at ${base}.`
+    } as unknown as T;
+  }
+}
+
 export async function fetchHealth() {
-  const res = await fetch(`${API_BASE}/health`);
-  return res.json();
+  return apiFetch('/health');
 }
 
 export async function getContent(contentId: string) {
-  const res = await fetch(`${API_BASE}/content/${contentId}`);
-  return res.json();
+  return apiFetch(`/content/${contentId}`);
 }
 
 export async function runAudit(formData: FormData) {
-  const res = await fetch(`${API_BASE}/audit/analyze`, {
+  return apiFetch('/audit/analyze', {
     method: 'POST',
     body: formData
   });
-  return res.json();
 }
 
 export async function runAuditText(text: string, title?: string, contentId?: string) {
-  const res = await fetch(`${API_BASE}/audit/analyze`, {
+  return apiFetch('/audit/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, title, contentId, format: 'text_copy' })
   });
-  return res.json();
 }
 
 export async function runAuditFile(file: File, title?: string, contentId?: string) {
@@ -38,11 +105,10 @@ export async function runAuditFile(file: File, title?: string, contentId?: strin
   formData.append('file', file);
   if (title) formData.append('title', title);
   if (contentId) formData.append('contentId', contentId);
-  const res = await fetch(`${API_BASE}/audit/analyze`, {
+  return apiFetch('/audit/analyze', {
     method: 'POST',
     body: formData
   });
-  return res.json();
 }
 
 export async function applySurgicalPatch(
@@ -52,106 +118,91 @@ export async function applySurgicalPatch(
   replacement: string,
   currentText?: string
 ) {
-  const res = await fetch(`${API_BASE}/content/${contentId}/apply-patch`, {
+  return apiFetch(`/content/${contentId}/apply-patch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ violationId, excerpt, replacement, currentText })
   });
-  return res.json();
 }
 
 export async function overrideWarning(contentId: string, violationId: string, guidelineId: string, justification: string) {
-  const res = await fetch(`${API_BASE}/content/${contentId}/override`, {
+  return apiFetch(`/content/${contentId}/override`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ violationId, guidelineId, justification })
   });
-  return res.json();
 }
 
 export async function getGuidelines() {
-  const res = await fetch(`${API_BASE}/knowledge/guidelines`);
-  return res.json();
+  return apiFetch('/knowledge/guidelines');
 }
 
 export async function addGuideline(title: string, category: string, content: string) {
-  const res = await fetch(`${API_BASE}/knowledge/guidelines`, {
+  return apiFetch('/knowledge/guidelines', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, category, content })
   });
-  return res.json();
 }
 
 export async function getFacts() {
-  const res = await fetch(`${API_BASE}/knowledge/facts`);
-  return res.json();
+  return apiFetch('/knowledge/facts');
 }
 
 export async function addFact(claimTopic: string, approvedStatement: string, sourceCitation: string, verificationDate?: string) {
-  const res = await fetch(`${API_BASE}/knowledge/facts`, {
+  return apiFetch('/knowledge/facts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ claimTopic, approvedStatement, sourceCitation, verificationDate })
   });
-  return res.json();
 }
 
 export async function getTerminology() {
-  const res = await fetch(`${API_BASE}/knowledge/terminology`);
-  return res.json();
+  return apiFetch('/knowledge/terminology');
 }
 
 export async function addTerminology(termPattern: string, preferredTerm: string, ruleType: string, explanation: string) {
-  const res = await fetch(`${API_BASE}/knowledge/terminology`, {
+  return apiFetch('/knowledge/terminology', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ termPattern, preferredTerm, ruleType, explanation })
   });
-  return res.json();
 }
 
 export async function getBrandKit() {
-  const res = await fetch(`${API_BASE}/knowledge/brand-kit`);
-  return res.json();
+  return apiFetch('/knowledge/brand-kit');
 }
 
 export async function getComments(contentId: string) {
-  const res = await fetch(`${API_BASE}/workflow/${contentId}/comments`);
-  return res.json();
+  return apiFetch(`/workflow/${contentId}/comments`);
 }
 
 export async function addComment(contentId: string, commentText: string, authorName: string, authorRole: string) {
-  const res = await fetch(`${API_BASE}/workflow/${contentId}/comments`, {
+  return apiFetch(`/workflow/${contentId}/comments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ commentText, authorName, authorRole })
   });
-  return res.json();
 }
 
 export async function updateWorkflowStatus(contentId: string, status: string, actorName: string, role: string) {
-  const res = await fetch(`${API_BASE}/workflow/${contentId}/status`, {
+  return apiFetch(`/workflow/${contentId}/status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status, actorName, role })
   });
-  return res.json();
 }
 
 export async function getAuditLogs(contentId: string) {
-  const res = await fetch(`${API_BASE}/workflow/${contentId}/audit-logs`);
-  return res.json();
+  return apiFetch(`/workflow/${contentId}/audit-logs`);
 }
 
 export async function getAnalyticsOverview() {
-  const res = await fetch(`${API_BASE}/analytics/overview`);
-  return res.json();
+  return apiFetch('/analytics/overview');
 }
 
 export async function getAmbiguityMetrics() {
-  const res = await fetch(`${API_BASE}/analytics/ambiguity-metrics`);
-  return res.json();
+  return apiFetch('/analytics/ambiguity-metrics');
 }
 
 export async function sendChatMessage(
@@ -170,14 +221,13 @@ export async function sendChatMessage(
     if (activeDraft?.title) formData.append('contentTitle', activeDraft.title);
     if (activeDraft?.text !== undefined) formData.append('contentText', activeDraft.text);
     formData.append('file', file);
-    const res = await fetch(`${API_BASE}/chat/message`, {
+    return apiFetch('/chat/message', {
       method: 'POST',
       body: formData
     });
-    return res.json();
   }
 
-  const res = await fetch(`${API_BASE}/chat/message`, {
+  return apiFetch('/chat/message', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -189,17 +239,14 @@ export async function sendChatMessage(
       contentText: activeDraft?.text
     })
   });
-  return res.json();
 }
 
 export async function getChatHistory(sessionId: string = 'session_default') {
-  const res = await fetch(`${API_BASE}/chat/history/${sessionId}`);
-  return res.json();
+  return apiFetch(`/chat/history/${sessionId}`);
 }
 
 export async function resetChatSession(sessionId: string = 'session_default') {
-  const res = await fetch(`${API_BASE}/chat/reset/${sessionId}`, {
+  return apiFetch(`/chat/reset/${sessionId}`, {
     method: 'POST'
   });
-  return res.json();
 }

@@ -5,7 +5,8 @@
   "main": "apps/server/src/index.ts",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
     "test": "npx tsx tests/test-pipeline.ts && npx tsx tests/test-agentic-workflow.ts && python services/vision-worker/test_worker.py",
@@ -13,14 +14,18 @@
     "test:pipeline": "npx tsx tests/test-pipeline.ts",
     "test:agentic": "npx tsx tests/test-agentic-workflow.ts",
     "test:live": "npx tsx tests/live-server-test.ts",
+    "test:codeploy": "npx tsx tests/test-co-deployment.ts",
+    "test:browser": "npx tsx tests/browser-frontend-verification.ts",
     "test:multimodal": "npx tsx tests/test-chat-upload.ts",
     "server": "npx tsx apps/server/src/index.ts",
     "dev:server": "npx tsx watch apps/server/src/index.ts",
     "dev:web": "next dev apps/web -p 3000",
     "start:all": "node scripts/start-all.mjs",
     "start": "node scripts/start-all.mjs",
+    "build:server": "esbuild apps/server/src/app.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=apps/server/dist/app.mjs && esbuild apps/server/src/index.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=apps/server/dist/index.mjs",
     "build:web": "next build apps/web",
-    "vercel-build": "node scripts/vercel-build.mjs",
+    "build": "npm run build:server && npm run build:web",
+    "vercel-build": "npm run build:server && npm run build:web",
     "start:web": "next start apps/web -p 3000"
   },
   "keywords": [
@@ -65,6 +70,7 @@
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "esbuild": "^0.28.2",
     "tailwindcss": "^3.4.19",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3"

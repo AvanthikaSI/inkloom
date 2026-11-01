@@ -1,10 +1,39 @@
-import { spawn } from 'node:child_process';
+import { spawnSync, spawn } from 'node:child_process';
 import { join } from 'node:path';
 import process from 'node:process';
 
-const nextCli = join(process.cwd(), 'node_modules', 'next', 'dist', 'bin', 'next');
+const root = process.cwd();
+const esbuildCli = join(root, 'node_modules', 'esbuild', 'bin', 'esbuild');
+const nextCli = join(root, 'node_modules', 'next', 'dist', 'bin', 'next');
+
+console.log('[Inkloom] Building backend serverless artifacts...');
+const serverBuild = spawnSync(
+  process.execPath,
+  [
+    esbuildCli,
+    'apps/server/src/app.ts',
+    '--bundle',
+    '--platform=node',
+    '--target=node20',
+    '--format=esm',
+    '--packages=external',
+    '--outfile=apps/server/dist/app.mjs'
+  ],
+  {
+    cwd: root,
+    env: { ...process.env, NODE_ENV: 'production' },
+    stdio: 'inherit'
+  }
+);
+
+if (serverBuild.status !== 0) {
+  console.error('[Inkloom] Failed to bundle backend artifacts.');
+  process.exit(serverBuild.status || 1);
+}
+
+console.log('[Inkloom] Backend artifacts ready. Building Next.js web application...');
 const build = spawn(process.execPath, [nextCli, 'build', 'apps/web'], {
-  cwd: process.cwd(),
+  cwd: root,
   env: { ...process.env, NODE_ENV: 'production' },
   stdio: 'inherit'
 });

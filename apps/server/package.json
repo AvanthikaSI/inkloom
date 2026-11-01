@@ -1,0 +1,39 @@
+{
+  "name": "@inkloom/server",
+  "version": "1.0.0",
+  "description": "Inkloom AI — Enterprise Brand Governance API Backend",
+  "main": "dist/index.mjs",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/index.mjs && esbuild src/app.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/app.mjs",
+    "vercel-build": "npm run build"
+  },
+  "dependencies": {
+    "@inkloom/database": "file:../../packages/database",
+    "@inkloom/langgraph-core": "file:../../packages/langgraph-core",
+    "@inkloom/shared": "file:../../packages/shared",
+    "@inkloom/vector-store": "file:../../packages/vector-store",
+    "@langchain/core": "^1.3.0",
+    "@langchain/groq": "^1.3.1",
+    "@langchain/langgraph": "^1.5.2",
+    "@supabase/supabase-js": "^2.118.0",
+    "chromadb": "^3.5.0",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "multer": "^2.5.0",
+    "uuid": "^14.0.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^26.6.5",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

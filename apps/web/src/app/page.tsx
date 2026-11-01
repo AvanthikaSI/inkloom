@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Navbar } from '../components/Navbar';
+import { Navbar, DYNAMIC_ROLES } from '../components/Navbar';
 import { ReviewStudio } from '../components/ReviewStudio';
 import { AgenticChat } from '../components/AgenticChat';
 import { KnowledgeHub } from '../components/KnowledgeHub';
@@ -22,19 +22,28 @@ export default function Home() {
   });
 
   return (
-    <div className="relative min-h-screen bg-[#0b0c10] text-zinc-100 flex flex-col selection:bg-zinc-700 selection:text-white">
-      {/* Top Navigation */}
+    <div className="relative min-h-screen bg-[#07080c] text-zinc-100 flex flex-col selection:bg-blue-600/30 selection:text-white overflow-hidden">
+      {/* Ambient Glossy Background Glow Spheres */}
+      <div className="pointer-events-none fixed -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[130px]" />
+      <div className="pointer-events-none fixed top-1/3 -right-40 h-[600px] w-[600px] rounded-full bg-indigo-600/10 blur-[150px]" />
+      <div className="pointer-events-none fixed -bottom-40 left-1/3 h-[500px] w-[500px] rounded-full bg-purple-600/10 blur-[140px]" />
+
+      {/* 100% Full-Width Glossy Top Navigation */}
       <Navbar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         userRole={userRole}
         setUserRole={setUserRole}
         complianceScore={complianceScore}
+        availableRoles={DYNAMIC_ROLES}
       />
 
-      {/* Main Container with smooth fade transition */}
+      {/* Main Container: Centered max-w-7xl content area with animated page navigation */}
       <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        <div className="transition-all duration-300 ease-in-out">
+        <div
+          key={currentTab}
+          className="transition-all duration-300 ease-out animate-in fade-in-50 slide-in-from-bottom-2 fill-mode-both"
+        >
           {currentTab === 'studio' && (
             <ReviewStudio
               userRole={userRole}
@@ -55,13 +64,13 @@ export default function Home() {
       </main>
 
       {/* Charcoal & Titanium Luxury Footer */}
-      <footer className="relative z-10 border-t border-white/[0.08] bg-[#0e0f14]/90 backdrop-blur-xl px-4 py-4 mt-auto">
+      <footer className="relative z-10 border-t border-white/[0.08] bg-[#0c0e15]/90 backdrop-blur-2xl px-6 py-4 mt-auto">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between text-xs text-zinc-400 gap-3">
           <div className="flex items-center space-x-2.5">
-            <div className="flex h-5 w-5 items-center justify-center rounded-md bg-zinc-800 text-emerald-400 border border-zinc-700">
+            <div className="flex h-5 w-5 items-center justify-center rounded-md bg-zinc-800 text-emerald-400 border border-zinc-700 shadow-sm">
               <ShieldCheck className="w-3.5 h-3.5" />
             </div>
-            <span className="font-semibold text-zinc-300">
+            <span className="font-bold text-zinc-300">
               Inkloom AI Enterprise Governance Engine
             </span>
             <span className="text-zinc-600">•</span>
@@ -70,7 +79,7 @@ export default function Home() {
 
           <button
             onClick={() => setShowAiDisclosure(true)}
-            className="flex items-center space-x-1.5 rounded-xl border border-white/[0.08] bg-zinc-850 px-3.5 py-1.5 text-zinc-300 hover:text-white hover:border-zinc-500 transition-all cursor-pointer shadow-sm text-[11px] font-semibold"
+            className="flex items-center space-x-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] px-3.5 py-1.5 text-zinc-300 hover:text-white hover:border-zinc-500 transition-all cursor-pointer shadow-sm text-[11px] font-semibold"
           >
             <Info className="w-3.5 h-3.5 text-zinc-400" />
             <span>Responsible AI & Model Disclosure</span>
@@ -130,7 +139,7 @@ export default function Home() {
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
                   <div>
                     <strong className="text-white">Pure Python Vision & Document Engine:</strong>
-                    <span className="text-zinc-400 ml-1">Standard Python modules (Pillow) executing mathematical W3C WCAG 2.1 relative luminance algorithms.</span>
+                    <span className="text-zinc-400 ml-1">Standard Python modules (Pillow) executing mathematical W3C WCAG 2.1 relative luminance algorithms with pure TypeScript fallbacks.</span>
                   </div>
                 </div>
                 <div className="flex items-start space-x-2.5">

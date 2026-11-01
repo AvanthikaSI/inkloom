@@ -78,6 +78,46 @@ export const KnowledgeHub: React.FC = () => {
   // Batch import state
   const [importJson, setImportJson] = useState('');
 
+  const availableCategories = Array.from(
+    new Set([
+      'tone_voice',
+      'legal',
+      'visual',
+      'accessibility',
+      'terminology',
+      ...guidelines.map((g) => g.category).filter(Boolean)
+    ])
+  );
+
+  const availableRuleTypes = Array.from(
+    new Set([
+      'banned',
+      'preferred_alternative',
+      'trademark_capitalization',
+      ...terminology.map((t) => t.ruleType).filter(Boolean)
+    ])
+  );
+
+  const formatCategoryLabel = (cat: string) => {
+    switch (cat) {
+      case 'tone_voice': return 'Tone & Voice';
+      case 'legal': return 'Legal & Claims';
+      case 'visual': return 'Visual & Design';
+      case 'accessibility': return 'Accessibility & WCAG';
+      case 'terminology': return 'Terminology & Style';
+      default: return cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+  };
+
+  const formatRuleTypeLabel = (rule: string) => {
+    switch (rule) {
+      case 'banned': return 'Prohibited Banned Word';
+      case 'preferred_alternative': return 'Preferred Alternative';
+      case 'trademark_capitalization': return 'Trademark Capitalization';
+      default: return rule.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+  };
+
   useEffect(() => {
     loadAll();
   }, []);
@@ -749,13 +789,13 @@ export const KnowledgeHub: React.FC = () => {
                     <select
                       value={newGuideline.category}
                       onChange={(e) => setNewGuideline({ ...newGuideline, category: e.target.value })}
-                      className="w-full bg-[#0c0d12] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-400"
+                      className="w-full bg-[#0c0d12] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-400 cursor-pointer"
                     >
-                      <option value="tone_voice">Tone & Voice</option>
-                      <option value="legal">Legal & Claims</option>
-                      <option value="visual">Visual & Design</option>
-                      <option value="accessibility">Accessibility & WCAG</option>
-                      <option value="terminology">Terminology & Style</option>
+                      {availableCategories.map((cat) => (
+                        <option key={cat} value={cat} className="bg-[#10121a] text-white">
+                          {formatCategoryLabel(cat)}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="space-y-1.5">
@@ -851,11 +891,13 @@ export const KnowledgeHub: React.FC = () => {
                     <select
                       value={newLexicon.ruleType}
                       onChange={(e) => setNewLexicon({ ...newLexicon, ruleType: e.target.value })}
-                      className="w-full bg-[#0c0d12] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-400"
+                      className="w-full bg-[#0c0d12] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-400 cursor-pointer"
                     >
-                      <option value="banned">Prohibited Banned Word</option>
-                      <option value="preferred_alternative">Preferred Alternative</option>
-                      <option value="trademark_capitalization">Trademark Capitalization</option>
+                      {availableRuleTypes.map((rule) => (
+                        <option key={rule} value={rule} className="bg-[#10121a] text-white">
+                          {formatRuleTypeLabel(rule)}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="space-y-1.5">
