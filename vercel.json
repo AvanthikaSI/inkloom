@@ -2,6 +2,9 @@
   "framework": "nextjs",
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "apps/web/.next",
+  "env": {
+    "NODE_ENV": "production"
+  },
   "rewrites": [
     {
       "source": "/api/:path*",
