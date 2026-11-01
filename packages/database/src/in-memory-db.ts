@@ -13,6 +13,7 @@ import {
 } from '@inkloom/shared';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 
 /**
  * Enterprise In-Memory Database Store for Inkloom AI.
@@ -21,7 +22,7 @@ import path from 'node:path';
 class InMemoryDatabase {
   private readonly persistenceFile = process.env.INKLOOM_DATA_FILE
     ? path.resolve(process.env.INKLOOM_DATA_FILE)
-    : path.resolve(process.cwd(), 'data', 'inkloom-db.json');
+    : (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) ? path.resolve(os.tmpdir(), 'inkloom-db.json') : path.resolve(process.cwd(), 'data', 'inkloom-db.json');
   public users: Map<string, UserProfile> = new Map();
   public guidelines: Map<string, BrandGuideline> = new Map();
   public facts: Map<string, ApprovedFact> = new Map();
@@ -54,10 +55,14 @@ class InMemoryDatabase {
       chatSessions: Array.from(this.chatSessions.values())
     };
 
-    fs.mkdirSync(path.dirname(this.persistenceFile), { recursive: true });
-    const temporaryFile = `${this.persistenceFile}.tmp`;
-    fs.writeFileSync(temporaryFile, JSON.stringify(state, null, 2), 'utf8');
-    fs.renameSync(temporaryFile, this.persistenceFile);
+    try {
+      fs.mkdirSync(path.dirname(this.persistenceFile), { recursive: true });
+      const temporaryFile = `${this.persistenceFile}.tmp`;
+      fs.writeFileSync(temporaryFile, JSON.stringify(state, null, 2), 'utf8');
+      fs.renameSync(temporaryFile, this.persistenceFile);
+    } catch (err) {
+      console.warn('[Inkloom DB] Persistence skipped in read-only environment:', err?.message || err);
+    }
   }
 
   private loadPersistedState(): void {
