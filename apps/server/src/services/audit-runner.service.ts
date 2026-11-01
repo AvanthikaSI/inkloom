@@ -28,6 +28,7 @@ export class AuditRunnerService {
           if (!textToAnalyze.trim()) {
             textToAnalyze = `Visual creative asset inspected: ${visualData.dimensions.width}x${visualData.dimensions.height} image with ${visualData.dominantColors?.length || 0} dominant palette swatches. WCAG contrast and palette consistency evaluated.`;
             await ContentRepository.update(contentItem.id, { rawText: textToAnalyze });
+          contentItem.rawText = textToAnalyze;
           }
         }
       } else {

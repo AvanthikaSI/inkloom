@@ -110,22 +110,26 @@ export const ReviewStudio: React.FC<ReviewStudioProps> = ({ userRole, onAuditCom
   const processFile = async (file: File) => {
     setLoading(true);
     setErrorMessage('');
+    const cleanTitle = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+    setTitle(cleanTitle);
     setUploadName(file.name);
     setUploadSize(`${(file.size / 1024).toFixed(1)} KB`);
     setUploadType(file.type || file.name.split('.').pop()?.toUpperCase() || 'DOCUMENT');
 
     try {
-      const res = await runAuditFile(file, title || file.name, contentId);
+      const res = await runAuditFile(file, cleanTitle, contentId);
       if (!res.success) {
         throw new Error(res.error || 'The document or creative could not be parsed.');
       }
       setReport(res.report);
       if (res.contentItem) {
         setContentId(res.contentItem.id);
+        const resolvedTitle = res.contentItem.title || cleanTitle;
+        setTitle(resolvedTitle);
         if (res.contentItem.rawText) {
           setText(res.contentItem.rawText);
         }
-        publishActiveDraft(res.contentItem.id, res.contentItem.title || title, res.contentItem.rawText || text);
+        publishActiveDraft(res.contentItem.id, resolvedTitle, res.contentItem.rawText || text);
       }
       onAuditComplete?.(res.report);
     } catch (e: any) {

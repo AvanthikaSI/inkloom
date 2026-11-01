@@ -14,8 +14,7 @@ export class PythonBridgeService {
     const candidates = [
       path.resolve(process.cwd(), 'services', 'vision-worker', 'worker_cli.py'),
       path.resolve(process.cwd(), '..', '..', 'services', 'vision-worker', 'worker_cli.py'),
-      path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../services/vision-worker/worker_cli.py'),
-      path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../services/vision-worker/worker_cli.py')
+      path.resolve(process.cwd(), '..', 'services', 'vision-worker', 'worker_cli.py')
     ];
     for (const c of candidates) {
       if (fs.existsSync(c)) return c;
@@ -24,33 +23,97 @@ export class PythonBridgeService {
   }
 
   /**
-   * Invokes Python document parser for PDF, DOCX, TXT with a pure-TS fallback for serverless environments.
+   * Invokes document parser for PDF, DOCX, TXT with high-performance pure-TS fallback for serverless environments.
    */
   public static async parseDocument(filePath: string): Promise<PythonWorkerResponse> {
+    // 1. Try Python first if available and if it actually extracts text
     const pyRes = await this.execute(['--action', 'parse_doc', '--file', filePath]);
-    if (pyRes.success && pyRes.data) {
+    if (pyRes.success && pyRes.data && pyRes.data.text && String(pyRes.data.text).trim().length > 0) {
       return pyRes;
     }
 
-    // Serverless Fallback: Read text file directly if Python is unavailable
+    // 2. High-performance native TypeScript / Node.js extraction
     try {
       if (fs.existsSync(filePath)) {
         const ext = path.extname(filePath).toLowerCase();
-        if (ext === '.txt' || ext === '.md' || ext === '.csv' || ext === '.json') {
-          const content = fs.readFileSync(filePath, 'utf-8');
+
+        // PDF extraction using PDFParse
+        if (ext === '.pdf') {
+          try {
+            const { PDFParse } = await import('pdf-parse');
+            const parser = new (PDFParse as any)({ url: filePath });
+            const textObj = await parser.getText();
+            const clean = (textObj?.text || '').trim();
+            if (clean.length > 0) {
+              return {
+                success: true,
+                data: {
+                  text: clean,
+                  format: 'pdf',
+                  char_count: clean.length,
+                  word_count: clean.split(/\s+/).filter(Boolean).length
+                }
+              };
+            }
+          } catch (pdfErr: any) {
+            console.warn('[Inkloom Parser] PDFParse error, falling back:', pdfErr?.message);
+          }
+        }
+
+        // DOCX extraction using AdmZip
+        if (ext === '.docx') {
+          try {
+            const AdmZipModule = await import('adm-zip');
+            const AdmZip = (AdmZipModule as any).default || AdmZipModule;
+            const zip = new AdmZip(filePath);
+            const xml = zip.readAsText('word/document.xml');
+            const pMatches = xml.match(/<w:p[\s>][\s\S]*?<\/w:p>/g) || [];
+            const paragraphs: string[] = [];
+            for (const p of pMatches) {
+              const tMatches = p.match(/<w:t[\s>][\s\S]*?<\/w:t>/g) || [];
+              const textRuns = tMatches.map((t: string) => t.replace(/<[^>]+>/g, '')).filter(Boolean);
+              if (textRuns.length > 0) paragraphs.push(textRuns.join(''));
+            }
+            const fullText = paragraphs.join('\n\n').trim();
+            if (fullText.length > 0) {
+              return {
+                success: true,
+                data: {
+                  text: fullText,
+                  format: 'docx',
+                  char_count: fullText.length,
+                  word_count: fullText.split(/\s+/).filter(Boolean).length
+                }
+              };
+            }
+          } catch (docxErr: any) {
+            console.warn('[Inkloom Parser] DOCX parse error:', docxErr?.message);
+          }
+        }
+
+        // Plain text, Markdown, CSV, JSON, HTML, XML, RTF
+        if (['.txt', '.md', '.csv', '.json', '.html', '.htm', '.xml', '.rtf'].includes(ext)) {
+          let content = fs.readFileSync(filePath, 'utf-8');
+          if (ext === '.html' || ext === '.htm') {
+            content = content.replace(/<style[\s\S]*?<\/style>/gi, '')
+                             .replace(/<script[\s\S]*?<\/script>/gi, '')
+                             .replace(/<[^>]+>/g, ' ')
+                             .replace(/\s+/g, ' ')
+                             .trim();
+          }
           return {
             success: true,
             data: {
               text: content,
-              format: 'txt',
+              format: ext.replace('.', ''),
               char_count: content.length,
               word_count: content.split(/\s+/).filter(Boolean).length
             }
           };
         }
       }
-    } catch {
-      // fallback failed, return original result
+    } catch (fallbackErr: any) {
+      console.warn('[Inkloom Parser] Pure-TS fallback failed:', fallbackErr?.message);
     }
 
     return pyRes;
@@ -69,6 +132,37 @@ export class PythonBridgeService {
       return pyRes;
     }
 
+    // Inspect real image dimensions from headers if possible
+    let width = 1200;
+    let height = 630;
+    let detectedFormat = 'CREATIVE_IMAGE';
+    try {
+      if (fs.existsSync(filePath)) {
+        const buffer = fs.readFileSync(filePath);
+        if (buffer.length > 24 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+          width = buffer.readUInt32BE(16);
+          height = buffer.readUInt32BE(20);
+          detectedFormat = 'PNG';
+        } else if (buffer.length > 4 && buffer[0] === 0xFF && buffer[1] === 0xD8) {
+          detectedFormat = 'JPEG';
+          let offset = 2;
+          while (offset < buffer.length - 8) {
+            if (buffer[offset] !== 0xFF) break;
+            const marker = buffer[offset + 1];
+            if (marker >= 0xC0 && marker <= 0xC3) {
+              height = buffer.readUInt16BE(offset + 5);
+              width = buffer.readUInt16BE(offset + 7);
+              break;
+            }
+            const len = buffer.readUInt16BE(offset + 2);
+            offset += 2 + len;
+          }
+        }
+      }
+    } catch {
+      // fallback to standard dimensions
+    }
+
     // Serverless Fallback: Provide synthetic inspection data based on standard brand swatches
     const colors = brandColors && brandColors.length > 0 ? brandColors : ['#0F172A', '#3B82F6', '#FFFFFF'];
     const contrastChecks: any[] = [];
@@ -79,9 +173,9 @@ export class PythonBridgeService {
     return {
       success: true,
       data: {
-        dominant_colors: colors,
+        dominant_colors: colors.map((hex, idx) => ({ hex, percentage: idx === 0 ? 60 : Math.round(40 / (colors.length - 1)) })),
         contrast_checks: contrastChecks,
-        metadata: { width: 1200, height: 630, format: 'CREATIVE_IMAGE' }
+        metadata: { width, height, format: detectedFormat }
       }
     };
   }
@@ -161,7 +255,7 @@ export class PythonBridgeService {
         });
 
         pyProcess.on('error', (err) => {
-          // Catch missing python (ENOENT) gracefully without crashing the server
+          // Catch missing python (ENOENT) gracefully without crashing
           resolve({
             success: false,
             error: `Python bridge unavailable: ${err.message}`

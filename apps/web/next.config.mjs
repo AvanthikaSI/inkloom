@@ -15,7 +15,7 @@ const nextConfig = {
     '@inkloom/langgraph-core'
   ],
   experimental: {
-    serverComponentsExternalPackages: ['chromadb']
+    serverComponentsExternalPackages: ['chromadb', 'pdf-parse', 'adm-zip']
   },
   async rewrites() {
     const rawBackendUrl = process.env.NEXT_PUBLIC_API_URL;

@@ -256,15 +256,19 @@ export async function POST(
           assetFileUrl: filePath,
           status: 'draft'
         });
-      } else if (text !== undefined) {
-        const updates: Record<string, string> = { rawText: text };
+      } else {
+        const updates: Record<string, any> = {};
+        if (text) updates.rawText = text;
+        if (title) updates.title = title;
         if (filePath) {
           updates.assetFileUrl = filePath;
           updates.contentFormat = resolveFormat(filePath, format);
         }
-        await ContentRepository.update(item.id, updates);
+        if (Object.keys(updates).length > 0) {
+          await ContentRepository.update(item.id, updates);
+          Object.assign(item, updates);
+        }
         await ContentRepository.updateStatus(item.id, 'draft');
-        Object.assign(item, updates);
         item.status = 'draft';
       }
 

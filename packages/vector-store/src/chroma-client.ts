@@ -34,14 +34,21 @@ export class ChromaVectorStore {
         const dummyEmbeddingFunction = {
           generate: async (texts: string[]) => texts.map(t => this.computeLightweightEmbedding(t))
         };
-        await this.client.getOrCreateCollection({
-          name: collectionName,
-          embeddingFunction: dummyEmbeddingFunction as any
-        });
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('ChromaDB timeout')), 500)
+        );
+        await Promise.race([
+          this.client.getOrCreateCollection({
+            name: collectionName,
+            embeddingFunction: dummyEmbeddingFunction as any
+          }),
+          timeoutPromise
+        ]);
         this.isConnectedToChroma = true;
       } catch {
-        // Fallback to local memory vector store silently
+        // Fallback to local memory vector store silently and disable client
         this.isConnectedToChroma = false;
+        this.client = null;
       }
     }
   }
