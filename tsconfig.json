@@ -24,6 +24,7 @@
   "include": [
     "packages/**/*",
     "apps/server/**/*",
+    "api/**/*",
     "tests/**/*"
   ],
   "exclude": ["node_modules", "dist", "apps/web"]

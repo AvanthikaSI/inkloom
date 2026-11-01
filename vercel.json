@@ -1,5 +1,11 @@
 {
   "framework": "nextjs",
   "buildCommand": "npm run vercel-build",
-  "outputDirectory": "apps/web/.next"
+  "outputDirectory": "apps/web/.next",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api"
+    }
+  ]
 }
