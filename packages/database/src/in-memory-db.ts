@@ -88,6 +88,9 @@ class InMemoryDatabase {
           this.allAuditReports.set(report.id || `rep_${Date.now()}`, report);
         }
       }
+      if (this.allAuditReports.size === 0) {
+        this.seedDefaultReports();
+      }
       this.restoreMap(this.reviewComments, state.reviewComments, undefined, true);
       this.restoreMap(this.auditLogs, state.auditLogs, undefined, true);
       this.restoreMap(this.ambiguityMetrics, state.ambiguityMetrics, 'guidelineId');
@@ -311,6 +314,127 @@ class InMemoryDatabase {
       ambiguityFrictionIndex: 0.09,
       recommendation: 'Clear guideline with high compliance adherence.'
     });
+    this.seedDefaultReports();
+  }
+
+  public seedDefaultReports(): void {
+  // 8. Default Seed Audit Reports for instant Audit History availability across all environments
+  const defaultReports: AuditReport[] = [
+    {
+    id: 'rep_seed_launch_01',
+    contentId: 'content_demo_01',
+    contentTitle: 'Inkloom AI Product Launch Press Release',
+    rawText: 'We are thrilled to announce InkLoom, the cheap and revolutionary game-changer that offers 100% infallible marketing compliance. Our magic AI engine is the fastest platform in the world, running with zero latency.',
+    overallComplianceScore: 17,
+    toneScore: 70,
+    factualScore: 80,
+    claimScore: 70,
+    visualScore: 100,
+    accessibilityScore: 100,
+    riskTier: 'critical_blocker',
+    violations: [
+      {
+      id: 'viol_seed_1',
+      category: 'terminology',
+      severity: 'moderate',
+      violatingExcerpt: 'cheap',
+      explanation: 'The word "cheap" conveys low quality and undermines brand premium perception. Use "cost-effective" or "accessible".',
+      ruleCitation: 'Brand Lexicon Rule: "cheap"',
+      suggestedRewrite: 'cost-effective or accessible',
+      status: 'open'
+      },
+      {
+      id: 'viol_seed_2',
+      category: 'terminology',
+      severity: 'minor',
+      violatingExcerpt: 'InkLoom',
+      explanation: 'Official brand capitalization is "Inkloom AI", not "InkLoom" or "inkloom".',
+      ruleCitation: 'Brand Lexicon Rule: "InkLoom"',
+      suggestedRewrite: 'Inkloom AI',
+      status: 'open'
+      },
+      {
+      id: 'viol_seed_3',
+      category: 'unsupported_claim',
+      severity: 'critical',
+      violatingExcerpt: '100% infallible',
+      explanation: 'Absolute reliability claims create extreme legal liability and breach consumer protection laws.',
+      ruleCitation: 'FTC & Legal Compliance Policy: Absolute Performance Guarantees',
+      suggestedRewrite: 'rigorous, automated brand protection',
+      status: 'open'
+      },
+      {
+      id: 'viol_seed_4',
+      category: 'unsupported_claim',
+      severity: 'critical',
+      violatingExcerpt: 'the fastest platform in the world',
+      explanation: 'Superlative claim lacking independent third-party audit verification.',
+      ruleCitation: 'Brand Guideline Section 2.1: Substantiation of Claims',
+      suggestedRewrite: 'an ultra-low latency governance platform',
+      status: 'open'
+      },
+      {
+      id: 'viol_seed_5',
+      category: 'factual_inaccuracy',
+      severity: 'critical',
+      violatingExcerpt: 'zero latency',
+      explanation: 'Physically impossible technical claim. Verified average latency is 3.2 seconds.',
+      ruleCitation: 'Engineering Benchmark Report Q3 2026, Table 4.1',
+      suggestedRewrite: 'sub-second inference latency',
+      status: 'open'
+      }
+    ],
+    executionTimeMs: 245,
+    createdAt: new Date(Date.now() - 3600000 * 4).toISOString()
+    },
+    {
+    id: 'rep_seed_whitepaper_02',
+    contentId: 'content_whitepaper_02',
+    contentTitle: 'Enterprise Governance Architecture Whitepaper',
+    rawText: 'Inkloom AI deploys a multi-tier governance firewall to review promotional drafts and multi-modal creative assets with deterministic risk scoring.',
+    overallComplianceScore: 88,
+    toneScore: 85,
+    factualScore: 90,
+    claimScore: 90,
+    visualScore: 100,
+    accessibilityScore: 100,
+    riskTier: 'warning',
+    violations: [
+      {
+      id: 'viol_seed_6',
+      category: 'tone',
+      severity: 'minor',
+      violatingExcerpt: 'deterministic risk scoring',
+      explanation: 'Consider adding a brief mention of human-in-the-loop review to reflect collaboration with brand guardians.',
+      ruleCitation: 'Brand Guideline: Section 1.2 — Authoritative Voice',
+      suggestedRewrite: 'deterministic risk scoring with human guardian validation',
+      status: 'open'
+      }
+    ],
+    executionTimeMs: 312,
+    createdAt: new Date(Date.now() - 3600000 * 24).toISOString()
+    },
+    {
+    id: 'rep_seed_keynote_03',
+    contentId: 'content_keynote_03',
+    contentTitle: 'Customer Launch Keynote Transcript',
+    rawText: 'Inkloom AI completes multi-agent governance audits in under 3.2 seconds on average, maintaining verified benchmark alignment across all enterprise channels.',
+    overallComplianceScore: 100,
+    toneScore: 100,
+    factualScore: 100,
+    claimScore: 100,
+    visualScore: 100,
+    accessibilityScore: 100,
+    riskTier: 'pass',
+    violations: [],
+    executionTimeMs: 189,
+    createdAt: new Date(Date.now() - 3600000 * 48).toISOString()
+    }
+  ];
+  for (const r of defaultReports) {
+    this.auditReports.set(r.contentId, r);
+    this.allAuditReports.set(r.id, r);
+  }
   }
 }
 

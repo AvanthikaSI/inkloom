@@ -66,6 +66,8 @@ export class AuditRunnerService {
     const report: AuditReport = {
       id: `rep_${Date.now()}`,
       contentId: contentItem.id,
+      contentTitle: contentItem.title || 'Untitled Draft',
+      rawText: contentItem.rawText || '',
       overallComplianceScore: graphResult.overallScore,
       toneScore: Math.max(0, 100 - (graphResult.categoryScores['tone'] || 0) * 10),
       factualScore: Math.max(0, 100 - (graphResult.categoryScores['factual_inaccuracy'] || 0) * 20),

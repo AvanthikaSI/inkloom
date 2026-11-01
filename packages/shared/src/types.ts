@@ -106,6 +106,8 @@ export interface ViolationItem {
 export interface AuditReport {
   id: string;
   contentId: string;
+  contentTitle?: string;
+  rawText?: string;
   overallComplianceScore: number; // 0 - 100
   toneScore: number;
   factualScore: number;
