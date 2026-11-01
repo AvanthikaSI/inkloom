@@ -41,7 +41,8 @@ export class PythonBridgeService {
         if (ext === '.pdf') {
           try {
             const { PDFParse } = await import('pdf-parse');
-            const parser = new (PDFParse as any)({ url: filePath });
+            const buf = fs.readFileSync(filePath);
+            const parser = new (PDFParse as any)({ data: buf, url: filePath });
             const textObj = await parser.getText();
             const clean = (textObj?.text || '').trim();
             if (clean.length > 0) {
