@@ -4,6 +4,9 @@
   "description": "Inkloom AI — Enterprise Brand Governance & Content Pre-publication Platform",
   "main": "apps/server/src/index.ts",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "test": "npx tsx tests/test-pipeline.ts && npx tsx tests/test-agentic-workflow.ts && python services/vision-worker/test_worker.py",
     "test:worker": "python services/vision-worker/test_worker.py",
