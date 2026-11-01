@@ -26,103 +26,181 @@ export class PythonBridgeService {
    * Invokes document parser for PDF, DOCX, TXT with high-performance pure-TS fallback for serverless environments.
    */
   public static async parseDocument(filePath: string): Promise<PythonWorkerResponse> {
-    // 1. Try Python first if available and if it actually extracts text
+    if (!fs.existsSync(filePath)) {
+      return { success: false, error: 'Document file not found: ' + filePath };
+    }
+
+    const ext = path.extname(filePath).toLowerCase();
+
+    // 1. High-Performance PDF Extraction via PDFParse
+    if (ext === '.pdf') {
+      try {
+        const { PDFParse } = await import('pdf-parse');
+        const buf = fs.readFileSync(filePath);
+        const parser = new (PDFParse as any)({ data: buf, url: filePath });
+        const textObj = await parser.getText();
+        const clean = (textObj?.text || '').trim();
+        if (clean.length > 50) {
+          return {
+            success: true,
+            data: {
+              text: clean,
+              format: 'pdf',
+              page_count: textObj?.pages?.length || 1,
+              char_count: clean.length,
+              word_count: clean.split(/\s+/).filter(Boolean).length
+            }
+          };
+        }
+      } catch (pdfErr: any) {
+        console.warn('[Inkloom Parser] PDFParse fallback to stream extractor:', pdfErr?.message);
+      }
+
+      // Secondary zero-dependency pure-TS stream extractor using built-in zlib
+      try {
+        const zlib = await import('zlib');
+        const buf = fs.readFileSync(filePath);
+        const content = buf.toString('binary');
+        const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+        let match;
+        const cmaps = new Map();
+        const rawStreams: string[] = [];
+
+        while ((match = streamRegex.exec(content)) !== null) {
+          try {
+            const decompressed = zlib.inflateSync(Buffer.from(match[1], 'binary')).toString('latin1');
+            rawStreams.push(decompressed);
+            if (decompressed.includes('beginbfrange') || decompressed.includes('beginbfchar')) {
+              const bfrangeMatches = decompressed.match(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g) || [];
+              for (const m of bfrangeMatches) {
+                const parts = m.match(/<([0-9a-fA-F]+)>/g);
+                if (parts && parts.length === 3) {
+                  const start = parseInt(parts[0].slice(1, -1), 16);
+                  const end = parseInt(parts[1].slice(1, -1), 16);
+                  const target = parseInt(parts[2].slice(1, -1), 16);
+                  for (let code = start; code <= end; code++) {
+                    cmaps.set(code, String.fromCodePoint(target + (code - start)));
+                  }
+                }
+              }
+              const bfcharMatches = decompressed.match(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g) || [];
+              for (const m of bfcharMatches) {
+                const parts = m.match(/<([0-9a-fA-F]+)>/g);
+                if (parts && parts.length === 2) {
+                  const code = parseInt(parts[0].slice(1, -1), 16);
+                  const target = parseInt(parts[1].slice(1, -1), 16);
+                  cmaps.set(code, String.fromCodePoint(target));
+                }
+              }
+            }
+          } catch {}
+        }
+
+        const extracted: string[] = [];
+        for (const s of rawStreams) {
+          if (!s.includes('BT') || !s.includes('ET')) continue;
+          const tjMatches = s.match(/\((.*?)\)\s*Tj/g) || [];
+          for (const m of tjMatches) {
+            extracted.push(m.replace(/^\(/, '').replace(/\)\s*Tj$/, ''));
+          }
+          const hexMatches = s.match(/<([0-9a-fA-F]+)>\s*Tj/g) || [];
+          for (const m of hexMatches) {
+            const hexStr = m.replace(/^</, '').replace(/>\s*Tj$/, '');
+            const step = hexStr.length % 4 === 0 ? 4 : 2;
+            let word = '';
+            for (let i = 0; i < hexStr.length; i += step) {
+              const val = parseInt(hexStr.substring(i, i + step), 16);
+              word += cmaps.get(val) || (val >= 32 && val <= 126 ? String.fromCharCode(val) : '');
+            }
+            if (word.trim()) extracted.push(word);
+          }
+        }
+
+        const streamClean = extracted.join(' ').replace(/\s+/g, ' ').trim();
+        if (streamClean.length > 50) {
+          return {
+            success: true,
+            data: {
+              text: streamClean,
+              format: 'pdf',
+              char_count: streamClean.length,
+              word_count: streamClean.split(/\s+/).filter(Boolean).length
+            }
+          };
+        }
+      } catch (streamErr: any) {
+        console.warn('[Inkloom Parser] Native stream decoding fallback failed:', streamErr?.message);
+      }
+    }
+
+    // 2. High-Performance DOCX Extraction via AdmZip
+    if (ext === '.docx') {
+      try {
+        const AdmZipModule = await import('adm-zip');
+        const AdmZip = (AdmZipModule as any).default || AdmZipModule;
+        const zip = new AdmZip(filePath);
+        const xml = zip.readAsText('word/document.xml');
+        const pMatches = xml.match(/<w:p[\s>][\s\S]*?<\/w:p>/g) || [];
+        const paragraphs: string[] = [];
+        for (const p of pMatches) {
+          const tMatches = p.match(/<w:t[\s>][\s\S]*?<\/w:t>/g) || [];
+          const textRuns = tMatches.map((t: string) => t.replace(/<[^>]+>/g, '')).filter(Boolean);
+          if (textRuns.length > 0) paragraphs.push(textRuns.join(''));
+        }
+        const fullText = paragraphs.join('\n\n').trim();
+        if (fullText.length > 0) {
+          return {
+            success: true,
+            data: {
+              text: fullText,
+              format: 'docx',
+              char_count: fullText.length,
+              word_count: fullText.split(/\s+/).filter(Boolean).length
+            }
+          };
+        }
+      } catch (docxErr: any) {
+        console.warn('[Inkloom Parser] DOCX parse error:', docxErr?.message);
+      }
+    }
+
+    // 3. Plain Text, Markdown, CSV, JSON, HTML, XML, RTF
+    if (['.txt', '.md', '.csv', '.json', '.html', '.htm', '.xml', '.rtf'].includes(ext)) {
+      try {
+        let content = fs.readFileSync(filePath, 'utf-8');
+        if (ext === '.html' || ext === '.htm') {
+          content = content.replace(/<style[\s\S]*?<\/style>/gi, '')
+                           .replace(/<script[\s\S]*?<\/script>/gi, '')
+                           .replace(/<[^>]+>/g, ' ')
+                           .replace(/\s+/g, ' ')
+                           .trim();
+        }
+        return {
+          success: true,
+          data: {
+            text: content,
+            format: ext.replace('.', ''),
+            char_count: content.length,
+            word_count: content.split(/\s+/).filter(Boolean).length
+          }
+        };
+      } catch (err: any) {
+        console.warn('[Inkloom Parser] Text read error:', err?.message);
+      }
+    }
+
+    // 4. Fallback to Python Worker CLI
     const pyRes = await this.execute(['--action', 'parse_doc', '--file', filePath]);
     if (pyRes.success && pyRes.data && pyRes.data.text && String(pyRes.data.text).trim().length > 0) {
       return pyRes;
     }
 
-    // 2. High-performance native TypeScript / Node.js extraction
-    try {
-      if (fs.existsSync(filePath)) {
-        const ext = path.extname(filePath).toLowerCase();
-
-        // PDF extraction using PDFParse
-        if (ext === '.pdf') {
-          try {
-            const { PDFParse } = await import('pdf-parse');
-            const buf = fs.readFileSync(filePath);
-            const parser = new (PDFParse as any)({ data: buf, url: filePath });
-            const textObj = await parser.getText();
-            const clean = (textObj?.text || '').trim();
-            if (clean.length > 0) {
-              return {
-                success: true,
-                data: {
-                  text: clean,
-                  format: 'pdf',
-                  char_count: clean.length,
-                  word_count: clean.split(/\s+/).filter(Boolean).length
-                }
-              };
-            }
-          } catch (pdfErr: any) {
-            console.warn('[Inkloom Parser] PDFParse error, falling back:', pdfErr?.message);
-          }
-        }
-
-        // DOCX extraction using AdmZip
-        if (ext === '.docx') {
-          try {
-            const AdmZipModule = await import('adm-zip');
-            const AdmZip = (AdmZipModule as any).default || AdmZipModule;
-            const zip = new AdmZip(filePath);
-            const xml = zip.readAsText('word/document.xml');
-            const pMatches = xml.match(/<w:p[\s>][\s\S]*?<\/w:p>/g) || [];
-            const paragraphs: string[] = [];
-            for (const p of pMatches) {
-              const tMatches = p.match(/<w:t[\s>][\s\S]*?<\/w:t>/g) || [];
-              const textRuns = tMatches.map((t: string) => t.replace(/<[^>]+>/g, '')).filter(Boolean);
-              if (textRuns.length > 0) paragraphs.push(textRuns.join(''));
-            }
-            const fullText = paragraphs.join('\n\n').trim();
-            if (fullText.length > 0) {
-              return {
-                success: true,
-                data: {
-                  text: fullText,
-                  format: 'docx',
-                  char_count: fullText.length,
-                  word_count: fullText.split(/\s+/).filter(Boolean).length
-                }
-              };
-            }
-          } catch (docxErr: any) {
-            console.warn('[Inkloom Parser] DOCX parse error:', docxErr?.message);
-          }
-        }
-
-        // Plain text, Markdown, CSV, JSON, HTML, XML, RTF
-        if (['.txt', '.md', '.csv', '.json', '.html', '.htm', '.xml', '.rtf'].includes(ext)) {
-          let content = fs.readFileSync(filePath, 'utf-8');
-          if (ext === '.html' || ext === '.htm') {
-            content = content.replace(/<style[\s\S]*?<\/style>/gi, '')
-                             .replace(/<script[\s\S]*?<\/script>/gi, '')
-                             .replace(/<[^>]+>/g, ' ')
-                             .replace(/\s+/g, ' ')
-                             .trim();
-          }
-          return {
-            success: true,
-            data: {
-              text: content,
-              format: ext.replace('.', ''),
-              char_count: content.length,
-              word_count: content.split(/\s+/).filter(Boolean).length
-            }
-          };
-        }
-      }
-    } catch (fallbackErr: any) {
-      console.warn('[Inkloom Parser] Pure-TS fallback failed:', fallbackErr?.message);
-    }
-
-    return pyRes;
+    return {
+      success: false,
+      error: 'No readable text could be extracted from ' + path.basename(filePath) + '. Please upload a text-based PDF, DOCX, or TXT file.'
+    };
   }
 
-  /**
-   * Invokes Python image worker with a pure-TS fallback for serverless environments.
-   */
   public static async auditImage(filePath: string, brandColors?: string[]): Promise<PythonWorkerResponse> {
     const args = ['--action', 'full_image_audit', '--file', filePath];
     if (brandColors && brandColors.length > 0) {
