@@ -204,3 +204,29 @@ ALTER TABLE IF EXISTS chat_messages DISABLE ROW LEVEL SECURITY;
 
 -- Grant broad API access to anon and service_role
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+
+
+-- =========================================================================
+-- SEED INITIAL BRAND GOVERNANCE KNOWLEDGE BASE
+-- =========================================================================
+INSERT INTO brand_guidelines (id, org_id, title, category, content, version, is_active)
+VALUES
+  ('bg_tone_01', 'org_inkloom_01', 'Authoritative yet Accessible Tone', 'tone_voice', 'Inkloom voice is clear, confident, and deeply technical yet approachable. Avoid sensationalist clickbait, hype words (e.g. "game-changer", "revolutionary", "magic"), and patronizing jargon. Speak directly to engineers and business leaders with measured respect.', 1, true),
+  ('bg_legal_01', 'org_inkloom_01', 'Substantiation of Marketing Claims', 'legal', 'All superlative claims such as "the fastest", "the #1 platform", "100% infallible", or "unbeatable" are strictly prohibited unless accompanied by certified third-party benchmark citations. Every numerical performance metric must reference an approved company benchmark test.', 2, true),
+  ('bg_visual_01', 'org_inkloom_01', 'Brand Palette & Contrast Compliance', 'visual', 'All brand graphics and web layouts must maintain minimum WCAG 2.1 AA contrast ratio (4.5:1 for standard body text, 3:1 for headers). Use Midnight Navy (#0F172A) for high-contrast typography against White (#FFFFFF) or Canvas (#F8FAFC). Electric Blue (#3B82F6) is reserved for interactive accents.', 1, true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO approved_facts (id, org_id, claim_topic, approved_statement, source_citation, verification_date, is_active)
+VALUES
+  ('fact_latency_01', 'org_inkloom_01', 'Inference Latency', 'Inkloom AI completes multi-agent governance audits in under 3.2 seconds on average.', 'Internal Engineering Benchmark Report Q3 2026, Table 4.1', '2026-09-15', true),
+  ('fact_uptime_01', 'org_inkloom_01', 'Platform SLA', 'Inkloom Enterprise SLA provides a guaranteed 99.95% service availability.', 'Inkloom Master Services Agreement, Section 9 (SLA Schedule)', '2026-08-01', true),
+  ('fact_compliance_01', 'org_inkloom_01', 'Compliance Certifications', 'Inkloom AI is certified SOC 2 Type II and GDPR compliant.', 'Audit Certificate AICPA 2026-0771', '2026-07-20', true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO terminology_rules (id, org_id, term_pattern, preferred_term, rule_type, explanation)
+VALUES
+  ('term_cheap', 'org_inkloom_01', 'cheap', 'cost-effective or accessible', 'banned', 'The word "cheap" conveys low quality and undermines brand premium perception. Use "cost-effective", "efficient", or "accessible".'),
+  ('term_magic', 'org_inkloom_01', 'magic', 'algorithmic or automated', 'banned', 'Avoid framing AI features as "magic". Inkloom emphasizes explainable, transparent engineering.'),
+  ('term_game_changer', 'org_inkloom_01', 'game-changer', 'high-impact innovation', 'banned', 'Overused marketing cliché. Explain the concrete technical improvement instead.'),
+  ('term_name_spelling', 'org_inkloom_01', 'InkLoom', 'Inkloom AI', 'trademark_capitalization', 'Official brand capitalization is "Inkloom AI", not "InkLoom" or "inkloom".')
+ON CONFLICT (id) DO NOTHING;

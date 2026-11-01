@@ -79,6 +79,9 @@ class InMemoryDatabase {
       this.restoreMap(this.guidelines, state.guidelines);
       this.restoreMap(this.facts, state.facts);
       this.restoreMap(this.terminology, state.terminology);
+      if (this.guidelines.size === 0) {
+        this.seedCoreKnowledgeBase();
+      }
       this.restoreMap(this.brandKits, state.brandKits);
       this.restoreMap(this.contentItems, state.contentItems);
       this.restoreMap(this.auditReports, state.auditReports, 'contentId');
@@ -121,7 +124,7 @@ class InMemoryDatabase {
   }
 
   private seedDefaultData() {
-    // User profiles for persona switching in navigation
+    // 1. User profiles for persona switching in navigation
     const defaultUsers: UserProfile[] = [
       {
         id: 'usr_creator_01',
@@ -157,8 +160,124 @@ class InMemoryDatabase {
       }
     ];
     for (const u of defaultUsers) this.users.set(u.id, u);
-    // Strict zero-data seeding: all guidelines, facts, lexicon, content, and reports must come from users only
+
+    // Seed ONLY core brand governance knowledge base
+    this.seedCoreKnowledgeBase();
+  }
+
+  public seedCoreKnowledgeBase(): void {
+    // 1. Official Brand Guidelines
+    const defaultGuidelines: BrandGuideline[] = [
+      {
+        id: 'bg_tone_01',
+        orgId: 'org_inkloom_01',
+        title: 'Authoritative yet Accessible Tone',
+        category: 'tone_voice',
+        content: 'Inkloom voice is clear, confident, and deeply technical yet approachable. Avoid sensationalist clickbait, hype words (e.g. "game-changer", "revolutionary", "magic"), and patronizing jargon. Speak directly to engineers and business leaders with measured respect.',
+        version: 1,
+        isActive: true,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'bg_legal_01',
+        orgId: 'org_inkloom_01',
+        title: 'Substantiation of Marketing Claims',
+        category: 'legal',
+        content: 'All superlative claims such as "the fastest", "the #1 platform", "100% infallible", or "unbeatable" are strictly prohibited unless accompanied by certified third-party benchmark citations. Every numerical performance metric must reference an approved company benchmark test.',
+        version: 2,
+        isActive: true,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'bg_visual_01',
+        orgId: 'org_inkloom_01',
+        title: 'Brand Palette & Contrast Compliance',
+        category: 'visual',
+        content: 'All brand graphics and web layouts must maintain minimum WCAG 2.1 AA contrast ratio (4.5:1 for standard body text, 3:1 for headers). Use Midnight Navy (#0F172A) for high-contrast typography against White (#FFFFFF) or Canvas (#F8FAFC). Electric Blue (#3B82F6) is reserved for interactive accents.',
+        version: 1,
+        isActive: true,
+        createdAt: new Date().toISOString()
+      }
+    ];
+    for (const g of defaultGuidelines) this.guidelines.set(g.id, g);
+
+    // 2. Approved Fact Matrix
+    const defaultFacts: ApprovedFact[] = [
+      {
+        id: 'fact_latency_01',
+        orgId: 'org_inkloom_01',
+        claimTopic: 'Inference Latency',
+        approvedStatement: 'Inkloom AI completes multi-agent governance audits in under 3.2 seconds on average.',
+        sourceCitation: 'Internal Engineering Benchmark Report Q3 2026, Table 4.1',
+        verificationDate: '2026-09-15',
+        isActive: true,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'fact_uptime_01',
+        orgId: 'org_inkloom_01',
+        claimTopic: 'Platform SLA',
+        approvedStatement: 'Inkloom Enterprise SLA provides a guaranteed 99.95% service availability.',
+        sourceCitation: 'Inkloom Master Services Agreement, Section 9 (SLA Schedule)',
+        verificationDate: '2026-08-01',
+        isActive: true,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'fact_compliance_01',
+        orgId: 'org_inkloom_01',
+        claimTopic: 'Compliance Certifications',
+        approvedStatement: 'Inkloom AI is certified SOC 2 Type II and GDPR compliant.',
+        sourceCitation: 'Audit Certificate AICPA 2026-0771',
+        verificationDate: '2026-07-20',
+        isActive: true,
+        createdAt: new Date().toISOString()
+      }
+    ];
+    for (const f of defaultFacts) this.facts.set(f.id, f);
+
+    // 3. Prohibited Lexicon (Terminology Rules)
+    const defaultTerminology: TerminologyRule[] = [
+      {
+        id: 'term_cheap',
+        orgId: 'org_inkloom_01',
+        termPattern: 'cheap',
+        preferredTerm: 'cost-effective or accessible',
+        ruleType: 'banned',
+        explanation: 'The word "cheap" conveys low quality and undermines brand premium perception. Use "cost-effective", "efficient", or "accessible".',
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'term_magic',
+        orgId: 'org_inkloom_01',
+        termPattern: 'magic',
+        preferredTerm: 'algorithmic or automated',
+        ruleType: 'banned',
+        explanation: 'Avoid framing AI features as "magic". Inkloom emphasizes explainable, transparent engineering.',
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'term_game_changer',
+        orgId: 'org_inkloom_01',
+        termPattern: 'game-changer',
+        preferredTerm: 'high-impact innovation',
+        ruleType: 'banned',
+        explanation: 'Overused marketing cliché. Explain the concrete technical improvement instead.',
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'term_name_spelling',
+        orgId: 'org_inkloom_01',
+        termPattern: 'InkLoom',
+        preferredTerm: 'Inkloom AI',
+        ruleType: 'trademark_capitalization',
+        explanation: 'Official brand capitalization is "Inkloom AI", not "InkLoom" or "inkloom".',
+        createdAt: new Date().toISOString()
+      }
+    ];
+    for (const t of defaultTerminology) this.terminology.set(t.id, t);
   }
 }
+
 
 export const inMemoryDb = new InMemoryDatabase();
