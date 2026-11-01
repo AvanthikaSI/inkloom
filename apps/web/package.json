@@ -19,7 +19,8 @@
     "react-dom": "^18.3.1",
     "tailwind-merge": "^3.7.0",
     "pdf-parse": "^2.4.5",
-    "adm-zip": "^0.5.16"
+    "adm-zip": "^0.5.16",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

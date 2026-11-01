@@ -25,11 +25,14 @@ export class AuditRunnerService {
               height: imgRes.data.metadata?.height || 0
             }
           };
-          if (!textToAnalyze.trim()) {
+          const ocrText = (imgRes.data.ocr_text || '').trim();
+          if (ocrText) {
+            textToAnalyze = ocrText;
+          } else if (!textToAnalyze.trim()) {
             textToAnalyze = `Visual creative asset inspected: ${visualData.dimensions.width}x${visualData.dimensions.height} image with ${visualData.dominantColors?.length || 0} dominant palette swatches. WCAG contrast and palette consistency evaluated.`;
-            await ContentRepository.update(contentItem.id, { rawText: textToAnalyze });
-          contentItem.rawText = textToAnalyze;
           }
+          await ContentRepository.update(contentItem.id, { rawText: textToAnalyze });
+          contentItem.rawText = textToAnalyze;
         }
       } else {
         const docRes = await PythonBridgeService.parseDocument(filePath);

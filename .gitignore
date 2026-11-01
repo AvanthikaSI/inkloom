@@ -9,3 +9,5 @@ __pycache__/
 Thumbs.db
 .turbo/
 data/
+
+*.traineddata
