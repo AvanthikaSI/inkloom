@@ -20,7 +20,51 @@ export function getApiBaseUrl(): string {
   return '/api';
 }
 
-async function apiFetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+// ──────────────────────────────────────────────────────────────────────────────
+// Retry helper: 3 attempts with exponential backoff for transient failures
+// ──────────────────────────────────────────────────────────────────────────────
+async function retryAsync<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 3,
+  baseDelayMs = 300
+): Promise<T> {
+  let lastError: any;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await fn();
+      // If the API returned a "tool not found" / transient error, retry
+      const r = result as any;
+      if (
+        r &&
+        typeof r === 'object' &&
+        r.success === false &&
+        typeof r.error === 'string' &&
+        (r.error.toLowerCase().includes('tool not found') ||
+          r.error.toLowerCase().includes('econnrefused') ||
+          r.error.toLowerCase().includes('fetch failed') ||
+          r.error.toLowerCase().includes('network error') ||
+          r.error.toLowerCase().includes('internal server'))
+      ) {
+        if (attempt < maxAttempts) {
+          const delay = baseDelayMs * Math.pow(2, attempt - 1) + Math.random() * 100;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+      return result;
+    } catch (err: any) {
+      lastError = err;
+      if (attempt < maxAttempts) {
+        const delay = baseDelayMs * Math.pow(2, attempt - 1) + Math.random() * 100;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+  if (lastError) throw lastError;
+  return { success: false, error: 'Max retries exceeded' } as unknown as T;
+}
+
+async function apiFetchRaw<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const base = getApiBaseUrl();
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${base}${cleanEndpoint}`;
@@ -75,6 +119,11 @@ async function apiFetch<T = any>(endpoint: string, options: RequestInit = {}): P
       error: `Network error: ${msg}. Check that the backend server is reachable at ${base}.`
     } as unknown as T;
   }
+}
+
+/** All API calls go through this wrapper which includes retry logic */
+async function apiFetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  return retryAsync(() => apiFetchRaw<T>(endpoint, options));
 }
 
 export async function fetchHealth() {

@@ -1,5 +1,5 @@
 import { brandAuditGraph } from '@inkloom/langgraph-core';
-import { PythonBridgeService } from './python-bridge';
+import { PythonBridgeService } from './python-bridge.js';
 import { AuditRepository, ContentRepository, GuidelineRepository, FactRepository } from '@inkloom/database';
 import { GuidelineIndexer, FactIndexer } from '@inkloom/vector-store';
 import { AuditReport, ContentItem } from '@inkloom/shared';

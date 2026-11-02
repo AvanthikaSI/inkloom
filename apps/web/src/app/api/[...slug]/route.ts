@@ -164,12 +164,13 @@ export async function GET(
       return jsonResponse({ success: true, logs });
     }
 
-    // 11. Analytics: Overview
+    // 11. Analytics: Overview – always query Supabase for accurate counts
     if (route === 'analytics/overview') {
-      const reports = Array.from(inMemoryDb.auditReports.values());
-      const totalAudits = reports.length;
+      // Fetch audit reports from Supabase for accurate cross-device count
+      const allReports = await AuditRepository.getAllReports();
+      const totalAudits = allReports.length;
       const avgScore = totalAudits > 0
-        ? Math.round(reports.reduce((acc, r) => acc + r.overallComplianceScore, 0) / totalAudits)
+        ? Math.round(allReports.reduce((acc, r) => acc + r.overallComplianceScore, 0) / totalAudits)
         : 88;
 
       const categoryCounts: Record<string, number> = {
@@ -181,19 +182,23 @@ export async function GET(
         accessibility: 0
       };
 
-      for (const r of reports) {
+      for (const r of allReports) {
         for (const v of r.violations) {
           categoryCounts[v.category] = (categoryCounts[v.category] || 0) + 1;
         }
       }
+
+      // Fetch live guideline/fact counts from Supabase too
+      const guidelines = await GuidelineRepository.getAll();
+      const facts = await FactRepository.getAll();
 
       return jsonResponse({
         success: true,
         stats: {
           totalAudits,
           averageComplianceScore: avgScore,
-          activeGuidelines: inMemoryDb.guidelines.size,
-          verifiedFactsCount: inMemoryDb.facts.size,
+          activeGuidelines: guidelines.length || inMemoryDb.guidelines.size,
+          verifiedFactsCount: facts.length || inMemoryDb.facts.size,
           categoryDistribution: categoryCounts
         }
       });
@@ -205,10 +210,10 @@ export async function GET(
       return jsonResponse({ success: true, metrics });
     }
 
-    // 13. Chat: History
+    // 13. Chat: History – always prefer Supabase, fall back to in-memory
     if (slug[0] === 'chat' && slug[1] === 'history' && slug.length === 3) {
       const sessionId = slug[2];
-      const session = inMemoryDb.chatSessions.get(sessionId);
+      const session = await ChatRepository.getSession(sessionId);
       return jsonResponse({
         success: true,
         sessionId,

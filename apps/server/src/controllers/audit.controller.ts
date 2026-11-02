@@ -80,7 +80,7 @@ export class AuditController {
 
   public static async getHistoricalReport(req: Request, res: Response): Promise<void> {
     try {
-      const report = await AuditRepository.getReportById(req.params.id);
+      const report = await AuditRepository.getReportById(String(req.params.id));
       if (!report) {
         res.status(404).json({ success: false, error: 'Historical audit report not found' });
         return;

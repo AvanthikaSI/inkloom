@@ -15,20 +15,25 @@ export class ChatRepository {
       try {
         const { data, error } = await supabase.from('chat_sessions').select('*').order('created_at', { ascending: false });
         if (!error && Array.isArray(data) && data.length > 0) {
-          return data.map((s: any) => ({
-            sessionId: s.session_id,
-            title: s.title || 'New Conversation',
-            messageCount: Array.isArray(s.messages) ? s.messages.length : 0,
-            lastMessageTime: s.updated_at || s.created_at,
-            activeDraft: s.active_draft
-          }));
+          return data
+            .filter((s: any) => !String(s.session_id || '').startsWith('session_workflow_'))
+            .map((s: any) => ({
+              sessionId: s.session_id,
+              title: s.title || 'New Conversation',
+              messageCount: Array.isArray(s.messages) ? s.messages.length : 0,
+              lastMessageTime: s.updated_at || s.created_at,
+              activeDraft: s.active_draft
+            }));
         }
       } catch (err) {
         console.warn('Supabase getAllSessions failed, using fallback store:', err);
       }
     }
 
-    const sessions = Array.from(inMemoryDb.chatSessions.values());
+    const sessions = Array.from(inMemoryDb.chatSessions.values())
+      // Exclude workflow-specific sessions from the global chat list
+      .filter((s) => !s.sessionId.startsWith('session_workflow_'));
+
     if (sessions.length === 0) {
       const defaultSession: ChatSession = {
         sessionId: 'session_default',
@@ -73,7 +78,7 @@ export class ChatRepository {
         if (!error && data) {
           return {
             sessionId: data.session_id,
-            messages: data.messages || [],
+            messages: Array.isArray(data.messages) ? data.messages : [],
             activeDraft: data.active_draft
           };
         }
@@ -119,9 +124,10 @@ export class ChatRepository {
         await supabase.from('chat_sessions').upsert({
           session_id: session.sessionId,
           title: (session as any).title || 'Conversation',
+          messages: session.messages || [],
           active_draft: session.activeDraft || null,
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'session_id' });
       } catch (err) {
         console.warn('Supabase saveSession failed, using fallback store:', err);
       }

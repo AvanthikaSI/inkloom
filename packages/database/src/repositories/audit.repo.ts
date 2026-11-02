@@ -42,7 +42,7 @@ export class AuditRepository {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        await supabase.from('audit_reports').insert({
+        await supabase.from('audit_reports').upsert({
           id: report.id,
           content_id: report.contentId,
           content_title: report.contentTitle,
@@ -56,7 +56,7 @@ export class AuditRepository {
           risk_level: report.riskTier,
           execution_time_ms: report.executionTimeMs,
           created_at: report.createdAt
-        });
+        }, { onConflict: 'id' });
 
         if (report.violations && report.violations.length > 0) {
           const violRows = report.violations.map(v => ({
@@ -73,7 +73,7 @@ export class AuditRepository {
             suggested_rewrite: v.suggestedRewrite,
             status: v.status || 'open'
           }));
-          await supabase.from('audit_violations').insert(violRows);
+          await supabase.from('audit_violations').upsert(violRows, { onConflict: 'id' });
         }
       } catch (err) {
         console.warn('Supabase saveReport failed, using fallback store:', err);
@@ -92,12 +92,18 @@ export class AuditRepository {
       try {
         const { data: rep, error: rErr } = await supabase
           .from('audit_reports')
-          .select('*, audit_violations(*)')
+          .select('*')
           .eq('content_id', contentId)
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
-        if (!rErr && rep) return toReport(rep);
+        if (!rErr && rep) {
+          const { data: viols } = await supabase
+            .from('audit_violations')
+            .select('*')
+            .eq('audit_report_id', rep.id);
+          return toReport(rep, viols || []);
+        }
       } catch (err) {
         console.warn('Supabase getLatestReport failed, using fallback store:', err);
       }
@@ -111,10 +117,16 @@ export class AuditRepository {
       try {
         const { data: rep, error: rErr } = await supabase
           .from('audit_reports')
-          .select('*, audit_violations(*)')
+          .select('*')
           .eq('id', reportId)
           .single();
-        if (!rErr && rep) return toReport(rep);
+        if (!rErr && rep) {
+          const { data: viols } = await supabase
+            .from('audit_violations')
+            .select('*')
+            .eq('audit_report_id', rep.id);
+          return toReport(rep, viols || []);
+        }
       } catch (err) {
         console.warn('Supabase getReportById failed, using fallback store:', err);
       }
@@ -126,12 +138,23 @@ export class AuditRepository {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        const { data: reps, error: rErr } = await supabase
-          .from('audit_reports')
-          .select('*, audit_violations(*)')
-          .order('created_at', { ascending: false });
-        if (!rErr && Array.isArray(reps) && reps.length > 0) {
-          return reps.map(r => toReport(r));
+        const [repsRes, violsRes] = await Promise.all([
+          supabase.from('audit_reports').select('*').order('created_at', { ascending: false }),
+          supabase.from('audit_violations').select('*')
+        ]);
+
+        if (!repsRes.error && Array.isArray(repsRes.data) && repsRes.data.length > 0) {
+          const violationsByReportId: Record<string, any[]> = {};
+          if (!violsRes.error && Array.isArray(violsRes.data)) {
+            for (const v of violsRes.data) {
+              const rId = v.audit_report_id;
+              if (rId) {
+                if (!violationsByReportId[rId]) violationsByReportId[rId] = [];
+                violationsByReportId[rId].push(v);
+              }
+            }
+          }
+          return repsRes.data.map(r => toReport(r, violationsByReportId[r.id] || []));
         }
       } catch (err) {
         console.warn('Supabase getAllReports failed, using fallback store:', err);

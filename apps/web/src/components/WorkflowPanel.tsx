@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   GitPullRequest,
   CheckCircle2,
@@ -16,10 +16,23 @@ import {
   ArrowRight,
   AlertCircle,
   FileCheck,
-  Edit
+  Edit,
+  FileCode,
+  CheckCircle,
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 import Link from 'next/link';
-import { getComments, addComment, updateWorkflowStatus, getAuditLogs, getContent, getAllContent, updateContent, sendChatMessage } from '../lib/api';
+import {
+  getComments,
+  addComment,
+  updateWorkflowStatus,
+  getAuditLogs,
+  getContent,
+  getAllContent,
+  updateContent,
+  sendChatMessage
+} from '../lib/api';
 import { useGovernance } from '../lib/governance-context';
 
 interface WorkflowPanelProps {
@@ -35,67 +48,71 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
   try {
     gov = useGovernance();
   } catch {}
-  const effectiveRole = userRole || gov?.userRole || "creator";
+  const effectiveRole = userRole || gov?.userRole || 'creator';
+
   const [contentList, setContentList] = useState<any[]>([]);
   const [activeId, setActiveId] = useState<string>(contentId);
-  const [status, setStatus] = useState('draft');
+  const [status, setStatus] = useState<string>('draft');
   const [content, setContent] = useState<any>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isAiConsulting, setIsAiConsulting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
+  // Sync activeId when prop changes
   useEffect(() => {
     if (contentId && contentId !== activeId) {
       setActiveId(contentId);
     }
   }, [contentId]);
 
+  // Load workflow whenever activeId changes
   useEffect(() => {
     loadWorkflow();
   }, [activeId]);
 
   const loadWorkflow = async () => {
     try {
+      setLoading(true);
       const [contentRes, cRes, lRes, allRes] = await Promise.all([
         getContent(activeId),
         getComments(activeId),
         getAuditLogs(activeId),
         getAllContent()
       ]);
-      if (contentRes.success && contentRes.item) {
-        if (gov?.activeDraft?.contentId === activeId && gov.activeDraft.text && contentRes.item.rawText !== gov.activeDraft.text) {
-          try {
-            await updateContent(activeId, {
-              rawText: gov.activeDraft.text,
-              title: gov.activeDraft.title || contentRes.item.title
-            });
-            contentRes.item.rawText = gov.activeDraft.text;
-            if (gov.activeDraft.title) contentRes.item.title = gov.activeDraft.title;
-          } catch {}
-        }
-        setContent(contentRes.item);
-        setStatus(contentRes.item.status);
-      } else if (gov?.activeDraft?.contentId === activeId && gov.activeDraft.text) {
-        try {
-          const created = await updateContent(activeId, {
-            rawText: gov.activeDraft.text,
-            title: gov.activeDraft.title || "Draft Publication",
-            status: "draft"
-          });
-          if (created.success && created.item) {
-            setContent(created.item);
-            setStatus(created.item.status || "draft");
-          }
-        } catch {}
-      }
-      if (cRes.success) setComments(cRes.comments || []);
-      if (lRes.success) setLogs(lRes.logs || []);
+
       if (allRes.success && Array.isArray(allRes.items)) {
         setContentList(allRes.items);
       }
+
+      if (contentRes.success && contentRes.item) {
+        setContent(contentRes.item);
+        setStatus(contentRes.item.status || 'draft');
+      } else if (allRes.success && Array.isArray(allRes.items) && allRes.items.length > 0) {
+        // If current activeId not found, find in list or select first item in list
+        const match = allRes.items.find((item: any) => item.id === activeId);
+        if (match) {
+          setContent(match);
+          setStatus(match.status || 'draft');
+        } else if (activeId === 'content_demo_01' && allRes.items[0]) {
+          setActiveId(allRes.items[0].id);
+          setContent(allRes.items[0]);
+          setStatus(allRes.items[0].status || 'draft');
+        }
+      }
+
+      if (cRes.success && Array.isArray(cRes.comments)) {
+        setComments(cRes.comments);
+      }
+
+      if (lRes.success && Array.isArray(lRes.logs)) {
+        setLogs(lRes.logs);
+      }
     } catch (e) {
       console.error('Failed to load workflow data:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -109,10 +126,12 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
           : effectiveRole === 'brand_manager'
           ? 'Elena Rostova'
           : 'David Zhao';
+
       const res = await updateWorkflowStatus(activeId, newStatus, actorName, effectiveRole);
       if (res.success) {
         setStatus(newStatus);
-        loadWorkflow();
+        // Refresh workflow data immediately to maintain perfect sync
+        await loadWorkflow();
       }
     } catch (e) {
       console.error('Failed to change status:', e);
@@ -135,7 +154,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
     try {
       const res = await addComment(activeId, text, authorName, effectiveRole);
-      if (res.success) {
+      if (res.success && res.comment) {
         setComments((prev) => [...prev, res.comment]);
         setNewComment('');
       }
@@ -152,12 +171,12 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
         if (aiRes.success) {
           const aiComment = await addComment(
-            contentId,
+            activeId,
             `🤖 [${aiRes.activeAgent || 'Brand Guardian'}]: ${aiRes.response}`,
             'Inkloom AI Copilot',
             'reviewer'
           );
-          if (aiComment.success) {
+          if (aiComment.success && aiComment.comment) {
             setComments((prev) => [...prev, aiComment.comment]);
           }
         }
@@ -181,11 +200,16 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
     { id: 'published', step: 4, label: 'Live Published', desc: 'Public Release Cleared' }
   ];
 
-  const currentStepIndex = status === 'changes_requested' ? 1 : steps.findIndex((s) => s.id === status);
+  const currentStepIndex =
+    status === 'changes_requested'
+      ? 1
+      : steps.findIndex((s) => s.id === status) >= 0
+      ? steps.findIndex((s) => s.id === status)
+      : 0;
 
-  const displayedText = content?.rawText || (gov?.activeDraft?.contentId === activeId ? gov.activeDraft.text : "") || "";
-  const displayedTitle = content?.title || (gov?.activeDraft?.contentId === activeId ? gov.activeDraft.title : "") || "Inkloom AI Product Launch Press Release";
-  const wordCount = displayedText ? displayedText.trim().split(/\s+/).filter(Boolean).length : 0;
+  const displayedText = content?.rawText || (gov?.activeDraft?.contentId === activeId ? gov.activeDraft.text : '') || '';
+  const displayedTitle = content?.title || (gov?.activeDraft?.contentId === activeId ? gov.activeDraft.title : '') || 'Inkloom AI Product Launch Press Release';
+
   return (
     <div className="space-y-6">
       {/* Workflow Bar & Stepper in Titanium Palette */}
@@ -210,51 +234,62 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                 onChange={(e) => setActiveId(e.target.value)}
                 className="rounded-xl border border-white/[0.15] bg-[#14151c] px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-zinc-400 cursor-pointer max-w-xs truncate"
               >
-                {contentList.length === 0 && <option value={activeId}>{content?.title || activeId}</option>}
+                {!contentList.some((item) => item.id === activeId) && (
+                  <option value={activeId}>
+                    {displayedTitle} [{(status || 'draft').toUpperCase()}]
+                  </option>
+                )}
                 {contentList.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.title || item.id} [{(item.status || 'draft').toUpperCase()}]
                   </option>
                 ))}
               </select>
+              <button
+                onClick={loadWorkflow}
+                title="Refresh Workflow Data"
+                className="p-1.5 rounded-lg border border-white/[0.1] bg-[#14151c] text-zinc-400 hover:text-white transition cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
           {/* Action Buttons based on Role */}
           <div className="flex flex-wrap items-center gap-3">
             {/* 1. Creator submission buttons */}
-            {(status === "draft" || status === "changes_requested") && effectiveRole === "creator" && (
+            {(status === 'draft' || status === 'changes_requested') && effectiveRole === 'creator' && (
               <button
-                onClick={() => handleStatusChange("in_review")}
+                onClick={() => handleStatusChange('in_review')}
                 className="silver-btn text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer shadow-md active:scale-95 transition"
               >
-                {status === "changes_requested" ? "Resubmit for Sign-Off Review" : "Submit for Sign-Off Review"}
+                {status === 'changes_requested' ? 'Resubmit for Sign-Off Review' : 'Submit for Sign-Off Review'}
               </button>
             )}
 
             {/* 2. Reviewer / Brand Guardian / Executive review buttons */}
-            {status === "in_review" && effectiveRole !== "creator" && (
+            {status === 'in_review' && effectiveRole !== 'creator' && (
               <>
                 <button
-                  onClick={() => handleStatusChange("changes_requested")}
+                  onClick={() => handleStatusChange('changes_requested')}
                   className="charcoal-btn text-amber-400 hover:text-amber-300 text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer transition shadow-md active:scale-95"
                 >
                   Request Changes
                 </button>
                 <button
-                  onClick={() => handleStatusChange("approved")}
+                  onClick={() => handleStatusChange('approved')}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition flex items-center space-x-1.5 cursor-pointer shadow-md active:scale-95"
                 >
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Approve & Sign-Off</span>
+                  <span>Approve &amp; Sign-Off</span>
                 </button>
               </>
             )}
 
             {/* 3. Publication authorization */}
-            {status === "approved" && (effectiveRole === "brand_manager" || effectiveRole === "executive") && (
+            {status === 'approved' && (effectiveRole === 'brand_manager' || effectiveRole === 'executive') && (
               <button
-                onClick={() => handleStatusChange("published")}
+                onClick={() => handleStatusChange('published')}
                 className="silver-btn text-xs font-extrabold px-6 py-2.5 rounded-xl cursor-pointer shadow-md active:scale-95 transition"
               >
                 Authorize Live Publication
@@ -262,43 +297,43 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
             )}
 
             {/* 4. Live published certified pill */}
-            {status === "published" && (
+            {status === 'published' && (
               <div className="flex items-center space-x-2 text-xs font-bold text-emerald-400 bg-emerald-950/60 px-4 py-2 rounded-xl border border-emerald-500/40">
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Publication Live & Certified</span>
+                <span>Publication Live &amp; Certified</span>
               </div>
             )}
 
             {/* 5. Informative status pills for non-acting roles */}
-            {status === "draft" && effectiveRole !== "creator" && (
+            {status === 'draft' && effectiveRole !== 'creator' && (
               <div className="flex items-center space-x-2 text-xs text-zinc-400 bg-[#121319] px-3.5 py-2 rounded-xl border border-white/[0.08]">
                 <Clock className="w-4 h-4 text-amber-400" />
-                <span>Awaiting Submission by Creator ({content?.authorName || "Sarah Jenkins"})</span>
+                <span>Awaiting Submission by Creator ({content?.authorName || 'Sarah Jenkins'})</span>
               </div>
             )}
 
-            {status === "in_review" && effectiveRole === "creator" && (
+            {status === 'in_review' && effectiveRole === 'creator' && (
               <div className="flex items-center space-x-2 text-xs text-sky-400 bg-sky-950/40 px-3.5 py-2 rounded-xl border border-sky-500/30">
                 <Clock className="w-4 h-4 animate-spin text-sky-400" />
                 <span>Submitted — Under Sign-Off Review</span>
               </div>
             )}
 
-            {status === "changes_requested" && effectiveRole !== "creator" && (
+            {status === 'changes_requested' && effectiveRole !== 'creator' && (
               <div className="flex items-center space-x-2 text-xs text-amber-400 bg-amber-950/40 px-3.5 py-2 rounded-xl border border-amber-500/30">
                 <AlertCircle className="w-4 h-4 text-amber-400" />
                 <span>Changes Requested — Awaiting Creator Revision</span>
               </div>
             )}
 
-            {status === "approved" && effectiveRole === "creator" && (
+            {status === 'approved' && effectiveRole === 'creator' && (
               <div className="flex items-center space-x-2 text-xs text-emerald-400 bg-emerald-950/40 px-3.5 py-2 rounded-xl border border-emerald-500/30">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Brand Signed-Off — Pending Live Publication</span>
               </div>
             )}
 
-            {status === "approved" && effectiveRole === "reviewer" && (
+            {status === 'approved' && effectiveRole === 'reviewer' && (
               <div className="flex items-center space-x-2 text-xs text-emerald-400 bg-emerald-950/40 px-3.5 py-2 rounded-xl border border-emerald-500/30">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Signed-Off — Awaiting Guardian Publication Release</span>
@@ -366,7 +401,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            {effectiveRole === "creator" && (
+            {effectiveRole === 'creator' && (
               <Link
                 href="/studio"
                 className="charcoal-btn text-[11px] font-semibold px-3 py-1 rounded-lg text-zinc-300 hover:text-white flex items-center space-x-1 cursor-pointer"
@@ -376,14 +411,14 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
               </Link>
             )}
             <span className="text-[10px] font-mono uppercase text-zinc-400 bg-zinc-800 px-2.5 py-1 rounded-md border border-white/[0.08]">
-              {content?.contentFormat ? content.contentFormat.replace("_", " ") : "TEXT COPY"}
+              {content?.contentFormat ? content.contentFormat.replace('_', ' ') : 'TEXT COPY'}
             </span>
           </div>
         </div>
 
         {displayedText ? (
           <div className="mt-4 space-y-3">
-            {status === "changes_requested" && effectiveRole === "creator" && (
+            {status === 'changes_requested' && effectiveRole === 'creator' && (
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-950/30 px-3.5 py-3 text-xs text-amber-100">
                 <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" />
                 <div>
@@ -397,29 +432,27 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
               <h4 className="text-base font-bold text-white">{displayedTitle}</h4>
               <div className="text-[11px] font-mono text-zinc-400 flex items-center space-x-2">
-                <span>Author: <strong className="text-zinc-200">{content?.authorName || "Sarah Jenkins"}</strong></span>
+                <span>
+                  Author: <strong className="text-zinc-200">{content?.authorName || 'Sarah Jenkins'}</strong>
+                </span>
                 <span>•</span>
-                <span>{wordCount} words</span>
-                <span>•</span>
-                <span className="capitalize font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-white/[0.06]">
-                  {status.replace("_", " ")}
+                <span>
+                  Publication ID: <code className="text-zinc-300 bg-zinc-800 px-1 py-0.5 rounded text-[10px]">{activeId}</code>
                 </span>
               </div>
             </div>
-            <div className="max-h-80 overflow-y-auto rounded-xl border border-white/[0.08] bg-[#0c0d12] p-4">
-              <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-zinc-200 font-mono">
-                {displayedText}
-              </p>
+            <div className="rounded-xl border border-white/[0.06] bg-[#0c0d12] p-4 text-xs font-mono text-zinc-300 leading-relaxed max-h-60 overflow-y-auto">
+              <p className="whitespace-pre-wrap">{displayedText}</p>
             </div>
           </div>
         ) : (
           <p className="mt-4 rounded-xl border border-white/[0.08] bg-[#0c0d12] p-4 text-xs text-zinc-400">
-            Loading submitted draft...
+            {loading ? 'Loading submitted draft from Supabase...' : 'No draft content loaded.'}
           </p>
         )}
       </div>
 
-      {/* Grid: Threaded Discussion & Cryptographic Audit Trail */}
+      {/* Grid: Threaded Discussion & Immutable Sign-Off Audit Trail */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Threaded Review Discussion with AI tagging */}
         <div className="titanium-panel rounded-2xl p-5 sm:p-6 flex flex-col h-[520px] shadow-2xl">
@@ -439,7 +472,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
             {comments.length === 0 ? (
               <div className="text-center py-16 text-zinc-500 text-xs flex flex-col items-center space-y-2">
                 <MessageSquare className="w-8 h-8 text-zinc-600" />
-                <p>No feedback posted yet.</p>
+                <p>No feedback posted yet for this publication.</p>
                 <p className="text-[11px] text-zinc-400">
                   Tip: Type <code className="text-zinc-200 font-mono">@ai: is this claim compliant?</code> to consult the Agentic Guardian.
                 </p>
@@ -481,7 +514,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
             {isAiConsulting && (
               <div className="bg-[#121319] p-3 rounded-xl border border-white/[0.12] flex items-center space-x-2.5 text-xs text-zinc-200 animate-pulse">
                 <Sparkles className="w-4 h-4 animate-spin text-white" />
-                <span>Agentic Brand Guardian is evaluating guidelines & benchmarks...</span>
+                <span>Agentic Brand Guardian is evaluating guidelines &amp; benchmarks...</span>
               </div>
             )}
           </div>
@@ -506,34 +539,126 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
         {/* Right: Immutable Cryptographic Compliance Audit Trail */}
         <div className="titanium-panel rounded-2xl p-5 sm:p-6 flex flex-col h-[520px] shadow-2xl">
-          <div className="flex items-center space-x-2.5 pb-3.5 border-b border-white/[0.08] mb-4">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-800 text-zinc-300 border border-zinc-700">
-              <Clock className="w-4 h-4" />
+          <div className="flex items-center justify-between pb-3.5 border-b border-white/[0.08] mb-4">
+            <div className="flex items-center space-x-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-800 text-zinc-300 border border-zinc-700">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white">Immutable Sign-Off Audit Trail</h3>
+                <p className="text-[10px] text-zinc-400">Cryptographically verifiable actions for {displayedTitle}</p>
+              </div>
             </div>
-            <h3 className="text-sm font-bold text-white">Immutable Sign-Off Audit Trail</h3>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+              {logs.length} Events
+            </span>
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-3 pr-1">
             {logs.length === 0 ? (
-              <div className="bg-[#0c0d12] p-3 rounded-xl border border-white/[0.06] text-xs text-zinc-400 font-mono">
-                <span className="text-emerald-400">[INIT]</span> Document initialized in Creator Draft state.
+              <div className="bg-[#0c0d12] p-4 rounded-xl border border-white/[0.06] text-xs text-zinc-400 font-mono space-y-1">
+                <div className="flex items-center space-x-2 text-emerald-400 font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>[INITIALIZED]</span>
+                </div>
+                <p className="text-zinc-300">
+                  Publication <strong className="text-white">{displayedTitle}</strong> (ID: {activeId}) initialized in Creator Draft state.
+                </p>
+                <p className="text-[11px] text-zinc-500">Actions taken in Review Studio or Workflow will log immutable audit records here.</p>
               </div>
             ) : (
-              logs.map((log) => (
-                <div
-                  key={log.id}
-                  className="titanium-card p-3 rounded-xl text-xs space-y-1 font-mono transition-all"
-                >
-                  <div className="flex items-center justify-between text-[10px] text-zinc-400">
-                    <span>{new Date(log.timestamp).toLocaleString()}</span>
-                    <span className="text-zinc-200 font-bold uppercase">{log.action}</span>
+              logs.map((log) => {
+                const isPatch = log.action === 'applied_suggestion';
+                const isOverride = log.action === 'overridden_warning';
+                const isApproved = log.action === 'approved_content';
+                const isPublished = log.action === 'published';
+                const isChangesReq = log.action === 'changes_requested';
+                const isSubmit = log.action === 'submitted_review';
+
+                return (
+                  <div
+                    key={log.id}
+                    className="titanium-card p-3.5 rounded-xl text-xs space-y-2 font-mono transition-all border border-white/[0.08]"
+                  >
+                    <div className="flex items-center justify-between text-[10px] text-zinc-400">
+                      <span>{new Date(log.timestamp).toLocaleString()}</span>
+                      <span
+                        className={`font-bold uppercase px-1.5 py-0.5 rounded text-[9px] ${
+                          isPublished
+                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
+                            : isApproved
+                            ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-600/30'
+                            : isChangesReq
+                            ? 'bg-amber-950 text-amber-400 border border-amber-500/30'
+                            : isOverride
+                            ? 'bg-amber-950/60 text-amber-300 border border-amber-600/30'
+                            : isPatch
+                            ? 'bg-blue-950 text-blue-300 border border-blue-500/30'
+                            : 'bg-zinc-800 text-zinc-300'
+                        }`}
+                      >
+                        {log.action.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    <p className="text-zinc-300 text-[11px] leading-relaxed">
+                      <strong className="text-white">{log.actorName}</strong>{' '}
+                      {isSubmit && (
+                        <span>
+                          submitted publication <strong className="text-white">{displayedTitle}</strong> for Sign-Off Review.
+                        </span>
+                      )}
+                      {isApproved && (
+                        <span>
+                          certified and approved publication <strong className="text-white">{displayedTitle}</strong>.
+                        </span>
+                      )}
+                      {isPublished && (
+                        <span>
+                          authorized live public distribution for <strong className="text-white">{displayedTitle}</strong>.
+                        </span>
+                      )}
+                      {isChangesReq && (
+                        <span>
+                          requested changes on publication <strong className="text-white">{displayedTitle}</strong>.
+                        </span>
+                      )}
+                      {isPatch && (
+                        <span>
+                          applied surgical patch on <strong className="text-white">{displayedTitle}</strong>.
+                        </span>
+                      )}
+                      {isOverride && (
+                        <span>
+                          overrode policy warning on <strong className="text-white">{displayedTitle}</strong>.
+                        </span>
+                      )}
+                      {!isSubmit && !isApproved && !isPublished && !isChangesReq && !isPatch && !isOverride && (
+                        <span>performed {log.action}</span>
+                      )}
+                    </p>
+
+                    {/* Specific details: Excerpt & Replacement */}
+                    {isPatch && log.metadata?.excerpt && (
+                      <div className="rounded-lg bg-black/60 p-2 text-[10px] space-y-1 border border-white/[0.05]">
+                        <div className="text-rose-400 line-through truncate">
+                          - {log.metadata.excerpt}
+                        </div>
+                        <div className="text-emerald-400 truncate">
+                          + {log.metadata.replacement || '[removed]'}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Specific details: Justification */}
+                    {isOverride && log.metadata?.justification && (
+                      <div className="rounded-lg bg-amber-950/30 p-2 text-[10px] text-amber-200 border border-amber-500/20">
+                        <strong>Override Justification:</strong> &quot;{log.metadata.justification}&quot;
+                      </div>
+                    )}
                   </div>
-                  <p className="text-zinc-300">
-                    <span className="text-zinc-100 font-semibold">{log.actorName}</span> performed{' '}
-                    <strong className="text-white">{log.action}</strong>
-                  </p>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

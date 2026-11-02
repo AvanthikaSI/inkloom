@@ -16,7 +16,7 @@ export class ChatController {
 
   public static async getSession(req: Request, res: Response): Promise<void> {
     try {
-      const session = await ChatRepository.getSession(req.params.sessionId);
+      const session = await ChatRepository.getSession(String(req.params.sessionId));
       if (!session) {
         res.status(404).json({ success: false, error: 'Chat session not found' });
         return;
@@ -41,7 +41,7 @@ export class ChatController {
   public static async renameSession(req: Request, res: Response): Promise<void> {
     try {
       const { title } = req.body;
-      const success = await ChatRepository.renameSession(req.params.sessionId, title || 'New Conversation');
+      const success = await ChatRepository.renameSession(String(req.params.sessionId), title || 'New Conversation');
       res.json({ success });
     } catch (e: any) {
       res.status(500).json({ success: false, error: e.message });
@@ -50,7 +50,7 @@ export class ChatController {
 
   public static async deleteSession(req: Request, res: Response): Promise<void> {
     try {
-      const deleted = await ChatRepository.deleteSession(req.params.sessionId);
+      const deleted = await ChatRepository.deleteSession(String(req.params.sessionId));
       res.json({ success: deleted });
     } catch (e: any) {
       res.status(500).json({ success: false, error: e.message });

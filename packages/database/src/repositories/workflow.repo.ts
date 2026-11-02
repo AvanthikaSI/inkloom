@@ -33,7 +33,10 @@ export class WorkflowRepository {
     if (supabase) {
       try {
         const { data, error } = await supabase.from('review_threads').select('*').eq('content_id', contentId).order('created_at', { ascending: true });
-        if (!error && Array.isArray(data) && data.length > 0) return data.map(toComment);
+        if (!error && Array.isArray(data)) {
+          // Always return Supabase data (even if empty – that's the true state)
+          return data.map(toComment);
+        }
       } catch (err) {
         console.warn('Supabase getComments failed, using fallback store:', err);
       }
@@ -79,7 +82,10 @@ export class WorkflowRepository {
     if (supabase) {
       try {
         const { data, error } = await supabase.from('compliance_audit_log').select('*').eq('content_id', contentId).order('timestamp', { ascending: true });
-        if (!error && Array.isArray(data) && data.length > 0) return data.map(toLog);
+        if (!error && Array.isArray(data)) {
+          // Always return Supabase data (even if empty – that's the true persisted state)
+          return data.map(toLog);
+        }
       } catch (err) {
         console.warn('Supabase getAuditLogs failed, using fallback store:', err);
       }

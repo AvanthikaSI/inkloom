@@ -24,7 +24,7 @@ export function createApp(): Express {
 
   // Central Health / Root Status Handler
   const healthHandler = async (_req: Request, res: Response) => {
-    let database = { connected: false, error: 'Database uninitialized' };
+    let database: { connected: boolean; error?: string } = { connected: false, error: 'Database uninitialized' };
     try {
       database = await checkSupabaseConnection();
     } catch (err: any) {

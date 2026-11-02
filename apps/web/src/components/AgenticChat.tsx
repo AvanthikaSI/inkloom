@@ -195,9 +195,19 @@ You can ask me questions, test promotional claims, or upload documents and creat
   const loadHistory = async (targetSessionId = currentSessionId) => {
     try {
       const res = await getChatHistory(targetSessionId);
-      if (res.success && res.messages && res.messages.length > 0) {
+      if (res.success && Array.isArray(res.messages) && res.messages.length > 0) {
         setMessages(res.messages);
+      } else if (res.success && Array.isArray(res.messages) && res.messages.length === 0) {
+        // Empty session – show welcome screen, not old messages
+        setMessages([{
+          id: `welcome_${Date.now()}`,
+          role: 'assistant',
+          content: `Hello! I am the **Inkloom AI Brand-Governance Copilot** orchestrated by LangGraph, LangChain, and Groq.\nHow can I assist you with content compliance, fact checking, or surgical diff patches today?`,
+          activeAgent: 'Master Orchestrator',
+          timestamp: new Date().toISOString()
+        }]);
       }
+      // If res.success === false, keep current messages (network error)
     } catch (err) {
       console.warn('Failed to load chat history:', err);
     }

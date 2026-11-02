@@ -39,6 +39,7 @@ export class PythonBridgeService {
       try {
         const buf = fs.readFileSync(filePath);
         // Load lib/pdf-parse directly to bypass index.js debug mode check
+        // @ts-ignore
         const pdfParseModule = await import('pdf-parse/lib/pdf-parse.js');
         const pdfParse = (pdfParseModule as any).default || pdfParseModule;
         const data = await pdfParse(buf);

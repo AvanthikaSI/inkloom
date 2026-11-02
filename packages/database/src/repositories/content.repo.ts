@@ -100,6 +100,27 @@ export class ContentRepository {
           inMemoryDb.persist();
           return res;
         }
+
+        // If update failed (e.g. row did not exist yet in Supabase), upsert it!
+        const existing = inMemoryDb.contentItems.get(id);
+        const { data: upsertData, error: upsertError } = await supabase.from('content_items').upsert({
+          id,
+          org_id: existing?.orgId || 'org_inkloom_01',
+          author_id: existing?.authorId || 'usr_creator_01',
+          author_name: updates.authorName || existing?.authorName || 'Sarah Jenkins',
+          title: updates.title || existing?.title || 'Draft Publication',
+          content_format: existing?.contentFormat || 'text_copy',
+          raw_text: updates.rawText !== undefined ? updates.rawText : (existing?.rawText || ''),
+          status: updates.status || existing?.status || 'draft',
+          ...sbUpdates
+        }, { onConflict: 'id' }).select().single();
+
+        if (!upsertError && upsertData) {
+          const res = toContent(upsertData);
+          inMemoryDb.contentItems.set(id, res);
+          inMemoryDb.persist();
+          return res;
+        }
       } catch (err) {
         console.warn('Supabase update failed, using fallback store:', err);
       }

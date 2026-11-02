@@ -62,7 +62,7 @@ class InMemoryDatabase {
       const temporaryFile = `${this.persistenceFile}.tmp`;
       fs.writeFileSync(temporaryFile, JSON.stringify(state, null, 2), 'utf8');
       fs.renameSync(temporaryFile, this.persistenceFile);
-    } catch (err) {
+    } catch (err: any) {
       console.warn('[Inkloom DB] Persistence skipped in read-only environment:', err?.message || err);
     }
   }

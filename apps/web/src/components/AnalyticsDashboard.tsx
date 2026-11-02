@@ -19,21 +19,25 @@ import { getAnalyticsOverview, getAmbiguityMetrics } from '../lib/api';
 export const AnalyticsDashboard: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [metrics, setMetrics] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadAnalytics();
   }, []);
 
   const loadAnalytics = async () => {
+    setLoading(true);
     try {
       const [oRes, mRes] = await Promise.all([
         getAnalyticsOverview(),
         getAmbiguityMetrics()
       ]);
       if (oRes.success) setStats(oRes.stats);
-      if (mRes.success) setMetrics(mRes.metrics);
+      if (mRes.success) setMetrics(mRes.metrics || []);
     } catch (e) {
       console.error('Failed to load analytics:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,7 +51,7 @@ export const AnalyticsDashboard: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-              Governance & Brand Health Intelligence
+              Governance &amp; Brand Health Intelligence
             </h2>
           </div>
         </div>
@@ -77,7 +81,7 @@ export const AnalyticsDashboard: React.FC = () => {
           </div>
           <div className="flex items-baseline space-x-2">
             <span className="text-3xl font-extrabold font-mono text-emerald-400 tracking-tight">
-              {stats ? `${stats.averageComplianceScore}%` : '0%'}
+              {stats ? `${stats.averageComplianceScore}%` : '—'}
             </span>
             <span className="text-[10px] text-emerald-400 font-bold flex items-center">
               <TrendingUp className="w-3 h-3 mr-0.5" />
@@ -144,7 +148,7 @@ export const AnalyticsDashboard: React.FC = () => {
                 <AlertOctagon className="w-4 h-4" />
               </div>
               <h3 className="text-sm sm:text-base font-extrabold text-white tracking-tight">
-                Guideline Ambiguity & Friction Scoring Engine (Signature Improvement 1)
+                Guideline Ambiguity &amp; Friction Scoring Engine (Signature Improvement 1)
               </h3>
             </div>
             <p className="text-xs text-zinc-400 mt-1">
@@ -168,42 +172,63 @@ export const AnalyticsDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.06] text-zinc-300">
-              {metrics.map((m) => {
-                const isHighFriction = m.ambiguityFrictionIndex >= 0.4;
-                const frictionPercent = Math.round(m.ambiguityFrictionIndex * 100);
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="py-10 px-5 text-center text-zinc-500 text-xs">
+                    <div className="flex items-center justify-center space-x-2">
+                      <Sparkles className="w-4 h-4 animate-spin text-zinc-500" />
+                      <span>Loading ambiguity metrics from Supabase…</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : metrics.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-10 px-5 text-center text-zinc-500 text-xs">
+                    <div className="flex flex-col items-center space-y-2">
+                      <HelpCircle className="w-6 h-6 text-zinc-600" />
+                      <p className="font-semibold text-zinc-400">No friction data yet</p>
+                      <p>Run an audit in Review Studio, then accept or override violations to generate friction scores here.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                metrics.map((m) => {
+                  const isHighFriction = m.ambiguityFrictionIndex >= 0.4;
+                  const frictionPercent = Math.round(m.ambiguityFrictionIndex * 100);
 
-                return (
-                  <tr key={m.guidelineId} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="py-4 px-5">
-                      <p className="font-bold text-white">{m.guidelineTitle}</p>
-                      <span className="text-[10px] font-mono text-zinc-400 uppercase">{m.category}</span>
-                    </td>
-                    <td className="py-4 px-5 font-mono text-zinc-200">{m.timesFlagged}</td>
-                    <td className="py-4 px-5 font-mono text-amber-400 font-bold">{m.timesOverridden}</td>
-                    <td className="py-4 px-5">
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[10px] font-mono font-bold">
-                          <span className={isHighFriction ? 'text-rose-400' : 'text-emerald-400'}>
-                            {frictionPercent}%
-                          </span>
-                          <span className="text-zinc-400">{isHighFriction ? 'High Friction' : 'Optimal'}</span>
+                  return (
+                    <tr key={m.guidelineId} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="py-4 px-5">
+                        <p className="font-bold text-white">{m.guidelineTitle}</p>
+                        <span className="text-[10px] font-mono text-zinc-400 uppercase">{m.category}</span>
+                      </td>
+                      <td className="py-4 px-5 font-mono text-zinc-200">{m.timesFlagged}</td>
+                      <td className="py-4 px-5 font-mono text-amber-400 font-bold">{m.timesOverridden}</td>
+                      <td className="py-4 px-5">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[10px] font-mono font-bold">
+                            <span className={isHighFriction ? 'text-rose-400' : 'text-emerald-400'}>
+                              {frictionPercent}%
+                            </span>
+                            <span className="text-zinc-400">{isHighFriction ? 'High Friction' : 'Optimal'}</span>
+                          </div>
+                          <div className="w-36 bg-black h-2 rounded-full overflow-hidden border border-white/[0.08]">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isHighFriction ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]' : 'bg-emerald-500'
+                              }`}
+                              style={{ width: `${Math.min(100, frictionPercent)}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="w-36 bg-black h-2 rounded-full overflow-hidden border border-white/[0.08]">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              isHighFriction ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]' : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${Math.min(100, frictionPercent)}%` }}
-                          />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-5 text-zinc-300 text-[11px] leading-relaxed">
-                      {m.recommendation || 'Standard team adherence rate.'}
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="py-4 px-5 text-zinc-300 text-[11px] leading-relaxed">
+                        {m.recommendation || 'Standard team adherence rate.'}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
