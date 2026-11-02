@@ -392,10 +392,9 @@ ${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text fo
         }
       }
 
-      let session = inMemoryDb.chatSessions.get(sessionId);
+      let session = await ChatRepository.getSession(sessionId);
       if (!session) {
-        session = { sessionId, messages: [] };
-        inMemoryDb.chatSessions.set(sessionId, session);
+        session = await ChatRepository.createSession(sessionId, 'New Conversation');
       }
 
       const currentTitle = (session as any).title;

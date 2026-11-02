@@ -213,6 +213,13 @@ You can ask me questions, test promotional claims, or upload documents and creat
     }
   };
 
+  const handleSelectSession = (sId: string) => {
+    if (sId === currentSessionId) return;
+    setCurrentSessionId(sId);
+    setActiveAgentStatus('Master Orchestrator');
+    loadHistory(sId);
+  };
+
   const handleNewSession = async () => {
     const newId = `session_${Date.now()}`;
     const defaultTitle = `Chat ${new Date().toLocaleDateString([], { month: 'short', day: 'numeric' })} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
@@ -558,7 +565,7 @@ You can ask me questions, test promotional claims, or upload documents and creat
               return (
                 <div
                   key={s.sessionId}
-                  onClick={() => setCurrentSessionId(s.sessionId)}
+                  onClick={() => handleSelectSession(s.sessionId)}
                   className={`group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer transition-all border ${
                     isActive
                       ? 'bg-gradient-to-r from-zinc-800 to-zinc-900 border-white/[0.15] text-white shadow-sm font-semibold'

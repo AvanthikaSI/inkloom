@@ -104,11 +104,10 @@ ${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text fo
         }
       }
 
-      // Retrieve or initialize session
-      let session = inMemoryDb.chatSessions.get(sessionId);
+      // Retrieve or initialize session from database
+      let session = await ChatRepository.getSession(sessionId);
       if (!session) {
-        session = { sessionId, messages: [] };
-        inMemoryDb.chatSessions.set(sessionId, session);
+        session = await ChatRepository.createSession(sessionId, 'New Conversation');
       }
 
       const currentTitle = (session as any).title;
@@ -218,7 +217,7 @@ ${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text fo
   public static async getHistory(req: Request, res: Response): Promise<void> {
     try {
       const sessionId = String(req.params.sessionId || 'session_default');
-      const session = inMemoryDb.chatSessions.get(sessionId);
+      const session = await ChatRepository.getSession(sessionId);
       res.json({
         success: true,
         sessionId,
