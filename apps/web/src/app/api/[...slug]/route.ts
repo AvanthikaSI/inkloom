@@ -393,6 +393,24 @@ ${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text fo
         inMemoryDb.chatSessions.set(sessionId, session);
       }
 
+      const currentTitle = (session as any).title;
+      const isDefaultTitle = !currentTitle ||
+        currentTitle === 'New Conversation' ||
+        currentTitle === 'Main Conversation' ||
+        currentTitle === 'Untitled Chat' ||
+        /^Chat\s+[A-Za-z]{3}\s+\d+/i.test(currentTitle);
+
+      if (isDefaultTitle && (message || attachmentInfo?.name)) {
+        let generatedTitle = message
+          ? message.replace(/^["'`#*\s]+|["'`#*\s]+$/g, '').slice(0, 38).trim()
+          : `Doc: ${attachmentInfo?.name?.slice(0, 30)}`;
+        if (generatedTitle) {
+          generatedTitle = generatedTitle.charAt(0).toUpperCase() + generatedTitle.slice(1);
+          (session as any).title = generatedTitle;
+          await ChatRepository.renameSession(sessionId, generatedTitle).catch(() => {});
+        }
+      }
+
       if (contentId) {
         const existingDraft = await ContentRepository.getById(contentId);
         // Provide draft as read-only context for the agent without mutating the database
@@ -449,6 +467,7 @@ ${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text fo
         };
       }
       inMemoryDb.persist();
+      await ChatRepository.saveSession(session).catch(() => {});
 
       return jsonResponse({
         success: true,
@@ -651,6 +670,7 @@ ${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text fo
       const sessionId = slug[2];
       inMemoryDb.chatSessions.delete(sessionId);
       inMemoryDb.persist();
+      await ChatRepository.deleteSession(sessionId).catch(() => {});
       return jsonResponse({ success: true, message: `Session ${sessionId} reset successfully.` });
     }
 

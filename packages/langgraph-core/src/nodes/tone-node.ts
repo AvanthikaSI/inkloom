@@ -1,15 +1,25 @@
 import { BrandAuditStateType } from '../state.js';
 import { ViolationItem } from '@inkloom/shared';
 import { GuidelineIndexer } from '@inkloom/vector-store';
+import { GuidelineRepository } from '@inkloom/database';
 import { getGroqChatModel, limitPromptText } from '../groq-client.js';
 
 export async function toneNode(state: BrandAuditStateType): Promise<Partial<BrandAuditStateType>> {
   const text = state.rawText;
   const violations: ViolationItem[] = [];
 
-  // Query vector store for relevant tone & voice guidelines
-  const relevantGuidelines = await GuidelineIndexer.findRelevantGuidelines(text, 2);
-  const guidelineContext = relevantGuidelines.map(g => g.document.text).join('\n');
+  // Fetch active tone and editorial guidelines directly from live database
+  const dbGuidelines = await GuidelineRepository.getAll(state.orgId || 'org_inkloom_01');
+  const activeToneGuidelines = dbGuidelines.filter(g => g.category === 'tone_voice' || g.category === 'messaging' || g.isActive !== false);
+
+  // Query vector store for additional semantic matches
+  const relevantGuidelines = await GuidelineIndexer.findRelevantGuidelines(text, 2).catch(() => []);
+  const vectorContext = relevantGuidelines.map(g => g.document.text).join('\n');
+  const liveGuidelineContext = activeToneGuidelines.map(g => `[Brand Guideline: "${g.title}"]: ${g.content}`).join('\n\n');
+  const guidelineContext = liveGuidelineContext || vectorContext || 'Maintain an authoritative, transparent, and measured tone.';
+
+  const primaryToneGuideline = activeToneGuidelines.find(g => g.category === 'tone_voice') || activeToneGuidelines[0];
+  const primaryCitation = primaryToneGuideline ? `Brand Guideline: "${primaryToneGuideline.title}"` : 'Brand Guideline: Tone & Voice';
 
   const groq = getGroqChatModel();
 
@@ -45,7 +55,7 @@ Only respond with the JSON array, or [] if completely compliant.`;
             severity: 'moderate',
             violatingExcerpt: item.violatingExcerpt || 'Tone mismatch',
             explanation: item.explanation || 'Tone is inconsistent with brand voice.',
-            ruleCitation: item.ruleCitation || 'Brand Guideline: Tone & Voice',
+            ruleCitation: item.ruleCitation || primaryCitation,
             suggestedRewrite: item.suggestedRewrite || 'Professional alternative',
             status: 'open'
           });
@@ -72,7 +82,7 @@ Only respond with the JSON array, or [] if completely compliant.`;
           severity: 'moderate',
           violatingExcerpt: hp.excerpt,
           explanation: hp.explanation,
-          ruleCitation: 'Brand Guideline: Section 1.2 — Authoritative Voice',
+          ruleCitation: primaryCitation,
           suggestedRewrite: hp.suggestion,
           status: 'open'
         });

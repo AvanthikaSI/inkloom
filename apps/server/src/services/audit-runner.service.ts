@@ -1,6 +1,7 @@
 import { brandAuditGraph } from '@inkloom/langgraph-core';
 import { PythonBridgeService } from './python-bridge.service.js';
-import { AuditRepository, ContentRepository } from '@inkloom/database';
+import { AuditRepository, ContentRepository, GuidelineRepository, FactRepository } from '@inkloom/database';
+import { GuidelineIndexer, FactIndexer } from '@inkloom/vector-store';
 import { AuditReport, ContentItem } from '@inkloom/shared';
 
 export class AuditRunnerService {
@@ -52,7 +53,23 @@ export class AuditRunnerService {
       ? `${textToAnalyze.slice(0, 12000)}\n\n[Document truncated for AI context safety.]`
       : textToAnalyze;
 
-    // 2. Execute LangGraph multi-agent pipeline
+    // 2. Pre-hydrate vector indexes from live Brand Knowledge Base
+    try {
+      const [guidelines, facts] = await Promise.all([
+        GuidelineRepository.getAll(contentItem.orgId || 'org_inkloom_01'),
+        FactRepository.getAll(contentItem.orgId || 'org_inkloom_01')
+      ]);
+      if (guidelines.length > 0) {
+        await GuidelineIndexer.indexGuidelines(guidelines).catch(() => {});
+      }
+      if (facts.length > 0) {
+        await FactIndexer.indexFacts(facts).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('Vector store pre-hydration notice:', e);
+    }
+
+    // 3. Execute LangGraph multi-agent pipeline
     const graphResult = await brandAuditGraph.invoke({
       orgId: contentItem.orgId,
       contentId: contentItem.id,
@@ -62,7 +79,7 @@ export class AuditRunnerService {
 
     const executionTimeMs = Date.now() - startTime;
 
-    // 3. Construct and persist AuditReport
+    // 4. Construct and persist AuditReport
     const report: AuditReport = {
       id: `rep_${Date.now()}`,
       contentId: contentItem.id,

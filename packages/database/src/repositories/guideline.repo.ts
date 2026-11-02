@@ -20,13 +20,18 @@ export class GuidelineRepository {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        const { data, error } = await supabase.from('brand_guidelines').select('*').eq('org_id', orgId);
-        if (!error && Array.isArray(data)) return data.map(toGuideline);
+        const { data, error } = await supabase.from('brand_guidelines').select('*').order('created_at', { ascending: false });
+        if (!error && Array.isArray(data) && data.length > 0) {
+          const filtered = data.filter((row: any) => !orgId || (row.org_id || row.orgId) === orgId || !row.org_id);
+          return (filtered.length > 0 ? filtered : data).map(toGuideline);
+        }
       } catch (err) {
         console.warn('Supabase query failed, falling back to local store:', err);
       }
     }
-    return Array.from(inMemoryDb.guidelines.values()).filter(g => g.orgId === orgId && g.isActive);
+    const all = Array.from(inMemoryDb.guidelines.values());
+    const filtered = all.filter(g => (!orgId || g.orgId === orgId || !g.orgId) && g.isActive !== false);
+    return filtered.length > 0 ? filtered : all.filter(g => g.isActive !== false);
   }
 
   public static async getById(id: string): Promise<BrandGuideline | null> {

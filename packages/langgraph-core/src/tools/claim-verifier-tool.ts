@@ -21,6 +21,18 @@ export const verifyClaimSubstantiationTool = tool(
         verified = true;
         citation = topMatch.document.metadata.sourceCitation;
         confidence = Math.round(topMatch.similarity * 100) / 100;
+      } else {
+        const allDbFacts = await FactRepository.getAll().catch(() => []);
+        const dbMatch = allDbFacts.find(f =>
+          trimmed.toLowerCase().includes(f.claimTopic.toLowerCase()) ||
+          f.claimTopic.toLowerCase().includes(trimmed.toLowerCase()) ||
+          trimmed.toLowerCase().includes(f.approvedStatement.toLowerCase())
+        );
+        if (dbMatch) {
+          verified = true;
+          citation = dbMatch.sourceCitation;
+          confidence = 0.92;
+        }
       }
 
       return JSON.stringify({

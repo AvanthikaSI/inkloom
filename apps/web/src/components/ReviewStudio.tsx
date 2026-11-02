@@ -353,9 +353,6 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
     return matchesCat && matchesStatus;
   }) || [];
 
-  const wordCount = text.split(/\s+/).filter(Boolean).length;
-  const readingTime = Math.ceil(wordCount / 200);
-
   return (
     <div className="space-y-6">
       {/* Error Alert Bar */}
@@ -554,37 +551,29 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
                   onBlur={() => { if (text.trim()) updateContent(contentId, { rawText: text, title }).catch(() => {}); }}
                 />
 
-                {/* Footer Metrics & Action Button */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-                  <div className="flex items-center space-x-3 text-xs text-zinc-400 font-mono">
-                    <span>{wordCount} words</span>
-                    <span>•</span>
-                    <span>{text.length} chars</span>
-                    <span>•</span>
-                    <span>~{readingTime} min read</span>
-                  </div>
+                {/* Action Buttons Bar */}
+                <div className="flex items-center justify-end space-x-3 pt-3 border-t border-white/[0.08]">
+                  <button
+                    onClick={handleSubmitForWorkflow}
+                    disabled={loading}
+                    className="charcoal-btn hover:border-white/40 h-11 px-4 rounded-xl cursor-pointer text-white font-semibold text-xs flex items-center justify-center space-x-1.5 flex-shrink-0 whitespace-nowrap transition shadow-md active:scale-95 disabled:opacity-50"
+                    title="Submit this draft to the Multi-Stakeholder Sign-Off pipeline"
+                  >
+                    <GitPullRequest className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Submit for Review</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+                  </button>
 
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={handleSubmitForWorkflow}
-                      disabled={loading}
-                      className="charcoal-btn hover:border-white/40 flex items-center justify-center space-x-1.5 text-xs px-4 py-2.5 rounded-xl cursor-pointer text-white font-semibold transition shadow-md active:scale-95"
-                      title="Submit this draft to the Multi-Stakeholder Sign-Off pipeline"
-                    >
-                      <GitPullRequest className="w-4 h-4 text-emerald-400" />
-                      <span>Submit for Review</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
-                    </button>
-
-                    <button
-                      onClick={handleRunAudit}
-                      disabled={loading}
-                      className="silver-btn flex items-center justify-center space-x-2 text-xs px-6 py-2.5 rounded-xl cursor-pointer disabled:opacity-50"
-                    >
-                      <Sparkles className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                      <span>{loading ? "Executing LangGraph Multi-Agent Audit..." : "Audit with Inkloom AI"}</span>
-                    </button>
-                  </div>
+                  <button
+                    onClick={handleRunAudit}
+                    disabled={loading}
+                    className="silver-btn h-11 px-6 rounded-xl cursor-pointer text-xs font-bold flex items-center justify-center space-x-2 flex-shrink-0 whitespace-nowrap disabled:opacity-50 shadow-md"
+                  >
+                    <Sparkles className={`w-4 h-4 flex-shrink-0 ${loading ? "animate-spin" : ""}`} />
+                    <span className="whitespace-nowrap">
+                      {loading ? "Auditing with Inkloom AI..." : "Audit with Inkloom AI"}
+                    </span>
+                  </button>
                 </div>
               </div>
             ) : (
@@ -608,29 +597,26 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
                 </div>
 
                 {/* Diff Action Bar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-white/[0.06]">
-                  <div className="text-xs text-zinc-400 font-mono">
-                    <span>{wordCount} words</span> • <span>{text.length} chars</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={handleSubmitForWorkflow}
-                      disabled={loading}
-                      className="charcoal-btn hover:border-white/40 flex items-center justify-center space-x-1.5 text-xs px-4 py-2.5 rounded-xl cursor-pointer text-white font-semibold transition shadow-md active:scale-95"
-                    >
-                      <GitPullRequest className="w-4 h-4 text-emerald-400" />
-                      <span>Submit for Review</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
-                    </button>
-                    <button
-                      onClick={handleRunAudit}
-                      disabled={loading}
-                      className="silver-btn flex items-center justify-center space-x-2 text-xs px-5 py-2.5 rounded-xl cursor-pointer disabled:opacity-50"
-                    >
-                      <Sparkles className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                      <span>Re-Audit Draft</span>
-                    </button>
-                  </div>
+                <div className="flex items-center justify-end space-x-3 pt-3 border-t border-white/[0.08]">
+                  <button
+                    onClick={handleSubmitForWorkflow}
+                    disabled={loading}
+                    className="charcoal-btn hover:border-white/40 h-11 px-4 rounded-xl cursor-pointer text-white font-semibold text-xs flex items-center justify-center space-x-1.5 flex-shrink-0 whitespace-nowrap transition shadow-md active:scale-95 disabled:opacity-50"
+                  >
+                    <GitPullRequest className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Submit for Review</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+                  </button>
+                  <button
+                    onClick={handleRunAudit}
+                    disabled={loading}
+                    className="silver-btn h-11 px-6 rounded-xl cursor-pointer text-xs font-bold flex items-center justify-center space-x-2 flex-shrink-0 whitespace-nowrap disabled:opacity-50 shadow-md"
+                  >
+                    <Sparkles className={`w-4 h-4 flex-shrink-0 ${loading ? "animate-spin" : ""}`} />
+                    <span className="whitespace-nowrap">
+                      {loading ? "Auditing with Inkloom AI..." : "Re-Audit Draft"}
+                    </span>
+                  </button>
                 </div>
               </div>
             )}

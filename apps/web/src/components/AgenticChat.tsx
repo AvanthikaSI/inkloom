@@ -296,6 +296,46 @@ You can ask me questions, test promotional claims, or upload documents and creat
     setLoading(true);
     setActiveAgentStatus('Orchestrator Planning & Selecting Specialized Tools...');
 
+    // Dynamically update chat session heading if currently default or first user prompt
+    const activeSession = sessionsList.find((s) => s.sessionId === currentSessionId);
+    const isFirstUserMessage = messages.filter((m) => m.role === 'user').length === 0;
+    const isDefaultTitle =
+      !activeSession?.title ||
+      activeSession.title === 'New Conversation' ||
+      activeSession.title === 'Main Conversation' ||
+      activeSession.title === 'Agentic AI Brand Guardian' ||
+      activeSession.title === 'Untitled Chat' ||
+      /^Chat\s+[A-Za-z]{3}\s+\d+/i.test(activeSession.title);
+
+    if (isFirstUserMessage || isDefaultTitle) {
+      let dynamicTitle = '';
+      if (textToSend) {
+        let clean = textToSend
+          .replace(/^["'`#*\s]+|["'`#*\s]+$/g, '')
+          .replace(/\s+/g, ' ');
+        if (clean.length > 38) {
+          const slice = clean.slice(0, 38);
+          const lastSpace = slice.lastIndexOf(' ');
+          clean = (lastSpace > 18 ? slice.slice(0, lastSpace) : slice).trim() + '...';
+        }
+        dynamicTitle = clean.charAt(0).toUpperCase() + clean.slice(1);
+      } else if (currentFile) {
+        dynamicTitle = `Doc: ${currentFile.name.slice(0, 30)}`;
+      }
+      if (dynamicTitle) {
+        setSessionsList((prev) => {
+          const exists = prev.some((s) => s.sessionId === currentSessionId);
+          if (exists) {
+            return prev.map((s) => (s.sessionId === currentSessionId ? { ...s, title: dynamicTitle } : s));
+          }
+          return [{ sessionId: currentSessionId, title: dynamicTitle, messageCount: 1 }, ...prev];
+        });
+        renameChatSession(currentSessionId, dynamicTitle).catch((err) => {
+          console.warn('Failed to persist dynamic session title:', err);
+        });
+      }
+    }
+
     try {
       const res = await sendChatMessage(textToSend, currentSessionId, userRole, currentFile, activeDraft);
       if (res.success) {

@@ -19,13 +19,18 @@ export class TerminologyRepository {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        const { data, error } = await supabase.from('terminology_rules').select('*').eq('org_id', orgId);
-        if (!error && Array.isArray(data)) return data.map(toRule);
+        const { data, error } = await supabase.from('terminology_rules').select('*').order('created_at', { ascending: false });
+        if (!error && Array.isArray(data) && data.length > 0) {
+          const filtered = data.filter((row: any) => !orgId || (row.org_id || row.orgId) === orgId || !row.org_id);
+          return (filtered.length > 0 ? filtered : data).map(toRule);
+        }
       } catch (err) {
         console.warn('Supabase query failed, falling back to local store:', err);
       }
     }
-    return Array.from(inMemoryDb.terminology.values()).filter(t => t.orgId === orgId);
+    const all = Array.from(inMemoryDb.terminology.values());
+    const filtered = all.filter(t => !orgId || t.orgId === orgId || !t.orgId);
+    return filtered.length > 0 ? filtered : all;
   }
 
   public static async create(rule: Omit<TerminologyRule, 'id' | 'createdAt'>): Promise<TerminologyRule> {

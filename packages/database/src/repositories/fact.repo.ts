@@ -20,13 +20,18 @@ export class FactRepository {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        const { data, error } = await supabase.from('approved_facts').select('*').eq('org_id', orgId);
-        if (!error && Array.isArray(data)) return data.map(toFact);
+        const { data, error } = await supabase.from('approved_facts').select('*').order('created_at', { ascending: false });
+        if (!error && Array.isArray(data) && data.length > 0) {
+          const filtered = data.filter((row: any) => !orgId || (row.org_id || row.orgId) === orgId || !row.org_id);
+          return (filtered.length > 0 ? filtered : data).map(toFact);
+        }
       } catch (err) {
         console.warn('Supabase query failed, falling back to local store:', err);
       }
     }
-    return Array.from(inMemoryDb.facts.values()).filter(f => f.orgId === orgId && f.isActive);
+    const all = Array.from(inMemoryDb.facts.values());
+    const filtered = all.filter(f => (!orgId || f.orgId === orgId || !f.orgId) && f.isActive !== false);
+    return filtered.length > 0 ? filtered : all.filter(f => f.isActive !== false);
   }
 
   public static async create(fact: Omit<ApprovedFact, 'id' | 'createdAt'>): Promise<ApprovedFact> {

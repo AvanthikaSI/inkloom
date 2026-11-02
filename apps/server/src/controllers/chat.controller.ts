@@ -111,6 +111,24 @@ ${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text fo
         inMemoryDb.chatSessions.set(sessionId, session);
       }
 
+      const currentTitle = (session as any).title;
+      const isDefaultTitle = !currentTitle ||
+        currentTitle === 'New Conversation' ||
+        currentTitle === 'Main Conversation' ||
+        currentTitle === 'Untitled Chat' ||
+        /^Chat\s+[A-Za-z]{3}\s+\d+/i.test(currentTitle);
+
+      if (isDefaultTitle && (rawMessage || file?.originalname)) {
+        let generatedTitle = rawMessage
+          ? rawMessage.replace(/^["'`#*\s]+|["'`#*\s]+$/g, '').slice(0, 38).trim()
+          : `Doc: ${file?.originalname?.slice(0, 30)}`;
+        if (generatedTitle) {
+          generatedTitle = generatedTitle.charAt(0).toUpperCase() + generatedTitle.slice(1);
+          (session as any).title = generatedTitle;
+          await ChatRepository.renameSession(sessionId, generatedTitle).catch(() => {});
+        }
+      }
+
       // Keep the copilot bound to the draft visible in Review Studio. This lets a
       // follow-up such as "apply that recommendation" target the same document.
       const requestedContentId = typeof contentId === 'string' && contentId.trim() ? contentId.trim() : undefined;
@@ -176,6 +194,7 @@ ${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text fo
         };
       }
       inMemoryDb.persist();
+      await ChatRepository.saveSession(session).catch(() => {});
 
       res.json({
         success: true,
@@ -215,6 +234,7 @@ ${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text fo
       const sessionId = String(req.params.sessionId || 'session_default');
       inMemoryDb.chatSessions.delete(sessionId);
       inMemoryDb.persist();
+      await ChatRepository.deleteSession(sessionId).catch(() => {});
       res.json({ success: true, message: `Session ${sessionId} reset successfully.` });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
