@@ -657,11 +657,11 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1 text-[10px] text-zinc-400 font-mono">
+              {/* <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1 text-[10px] text-zinc-400 font-mono">
                 <span className="rounded bg-zinc-800/80 px-2.5 py-0.5 border border-white/[0.08] text-zinc-300">Pure Python Parser</span>
                 <span className="rounded bg-zinc-800/80 px-2.5 py-0.5 border border-white/[0.08] text-zinc-300">Pillow Vision</span>
                 <span className="rounded bg-zinc-800/80 px-2.5 py-0.5 border border-white/[0.08] text-zinc-300">WCAG Contrast</span>
-              </div>
+              </div> */}
 
               {uploadName && (
                 <div

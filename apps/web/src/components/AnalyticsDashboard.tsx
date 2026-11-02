@@ -84,7 +84,6 @@ export const AnalyticsDashboard: React.FC = () => {
               +4.2% mo/mo
             </span>
           </div>
-          <p className="text-[10px] text-zinc-400 font-mono mt-1">Multi-modal pre-publication index</p>
         </div>
 
         {/* KPI 2: Total Audits */}
@@ -101,7 +100,6 @@ export const AnalyticsDashboard: React.FC = () => {
             </span>
             <span className="text-[10px] text-zinc-400 font-bold">multi-modal scans</span>
           </div>
-          <p className="text-[10px] text-zinc-400 font-mono mt-1">Zero latency local DAG</p>
         </div>
 
         {/* KPI 3: Active Brand Rules */}
@@ -118,7 +116,6 @@ export const AnalyticsDashboard: React.FC = () => {
             </span>
             <span className="text-[10px] text-zinc-400 font-medium">guidelines active</span>
           </div>
-          <p className="text-[10px] text-zinc-400 font-mono mt-1">Semantic ChromaDB embeddings</p>
         </div>
 
         {/* KPI 4: Verified Facts */}
@@ -135,7 +132,6 @@ export const AnalyticsDashboard: React.FC = () => {
             </span>
             <span className="text-[10px] text-zinc-400 font-medium">facts verified</span>
           </div>
-          <p className="text-[10px] text-zinc-400 font-mono mt-1">Substantiated audit citations</p>
         </div>
       </div>
 
