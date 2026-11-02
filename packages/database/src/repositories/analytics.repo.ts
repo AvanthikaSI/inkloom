@@ -70,7 +70,18 @@ export class AnalyticsRepository {
           }
 
           if (metricsToUpsert.length > 0) {
-            await supabase.from('guideline_ambiguity_metrics').upsert(metricsToUpsert, { onConflict: 'guideline_id' });
+            for (const row of metricsToUpsert) {
+              const { data: upd } = await supabase
+                .from('guideline_ambiguity_metrics')
+                .update(row)
+                .eq('guideline_id', row.guideline_id)
+                .select();
+              if (!upd || upd.length === 0) {
+                await supabase
+                  .from('guideline_ambiguity_metrics')
+                  .insert({ id: `gam_${row.guideline_id}`, org_id: 'org_inkloom_01', ...row });
+              }
+            }
             return metricsToUpsert.map((m) => ({
               guidelineId: m.guideline_id,
               guidelineTitle: m.guideline_title,
@@ -117,7 +128,7 @@ export class AnalyticsRepository {
           .from('guideline_ambiguity_metrics')
           .select('*')
           .eq('guideline_id', guidelineId)
-          .single();
+          .maybeSingle();
         if (mData) {
           metric = {
             guidelineId,
@@ -167,7 +178,7 @@ export class AnalyticsRepository {
     // Persist to Supabase
     if (supabase) {
       try {
-        await supabase.from('guideline_ambiguity_metrics').upsert({
+        const payload = {
           guideline_id: guidelineId,
           guideline_title: metric.guidelineTitle,
           category: metric.category,
@@ -177,9 +188,25 @@ export class AnalyticsRepository {
           ambiguity_friction_index: metric.ambiguityFrictionIndex,
           recommendation: metric.recommendation,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'guideline_id' });
+        };
+
+        const { data: updated, error: updErr } = await supabase
+          .from('guideline_ambiguity_metrics')
+          .update(payload)
+          .eq('guideline_id', guidelineId)
+          .select();
+
+        if (updErr || !updated || updated.length === 0) {
+          await supabase
+            .from('guideline_ambiguity_metrics')
+            .insert({
+              id: `gam_${guidelineId}`,
+              org_id: 'org_inkloom_01',
+              ...payload
+            });
+        }
       } catch (err) {
-        console.warn('Supabase upsert ambiguity metric failed:', err);
+        console.warn('Supabase update ambiguity metric failed:', err);
       }
     }
 

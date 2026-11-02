@@ -118,6 +118,20 @@ export class ContentController {
           action: 'applied_suggestion',
           metadata: { violationId, excerpt: violation?.violatingExcerpt || excerpt, replacement }
         });
+        let gId = violation?.guidelineId;
+        if (!gId && violation?.category) {
+          const cat = violation.category as string;
+          if (cat === 'unsupported_claim' || violation.category === 'factual_inaccuracy' || violation.category === 'legal') {
+            gId = 'bg_legal_01';
+          } else if (cat === 'visual_inconsistency' || violation.category === 'accessibility' || violation.category === 'visual') {
+            gId = 'bg_visual_01';
+          } else {
+            gId = 'bg_tone_01';
+          }
+        }
+        if (gId) {
+          await AnalyticsRepository.recordGuidelineResolution(String(gId), 'accepted').catch(() => {});
+        }
       }
 
       res.json({ success: true, item: updatedItem || { ...item, rawText: patchResult.newText } });

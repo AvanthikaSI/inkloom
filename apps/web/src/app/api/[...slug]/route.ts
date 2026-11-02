@@ -545,6 +545,20 @@ ${extractedDocText ? extractedDocText.slice(0, 10000) : '[No extractable text fo
           action: 'applied_suggestion',
           metadata: { violationId, excerpt: violation?.violatingExcerpt || excerpt, replacement }
         });
+        let gId = violation?.guidelineId;
+        if (!gId && violation?.category) {
+          const cat = violation.category as string;
+          if (cat === 'unsupported_claim' || cat === 'factual_inaccuracy' || cat === 'legal') {
+            gId = 'bg_legal_01';
+          } else if (cat === 'visual_inconsistency' || cat === 'accessibility' || cat === 'visual') {
+            gId = 'bg_visual_01';
+          } else {
+            gId = 'bg_tone_01';
+          }
+        }
+        if (gId) {
+          await AnalyticsRepository.recordGuidelineResolution(String(gId), 'accepted').catch(() => {});
+        }
       }
 
       return jsonResponse({ success: true, item: updatedItem || { ...item, rawText: patchResult.newText } });

@@ -3,13 +3,28 @@ import { inMemoryDb } from '../in-memory-db.js';
 import { getSupabase } from '../supabase-client.js';
 
 function toComment(row: any): ReviewComment {
+  let role = row.author_role;
+  if (!role) {
+    const idLower = (row.author_id || '').toLowerCase();
+    const nameLower = (row.author_name || '').toLowerCase();
+    if (idLower.includes('creator') || nameLower.includes('creator') || nameLower.includes('sarah')) {
+      role = 'creator';
+    } else if (idLower.includes('legal') || nameLower.includes('legal') || nameLower.includes('david')) {
+      role = 'legal';
+    } else if (idLower.includes('brand') || idLower.includes('manager') || nameLower.includes('elena')) {
+      role = 'brand_manager';
+    } else {
+      role = 'reviewer';
+    }
+  }
+
   return {
     id: row.id,
     contentId: row.content_id || row.contentId,
     violationId: row.violation_id || row.violationId,
-    authorId: row.author_id || row.authorId || 'usr_creator_01',
+    authorId: row.author_id || row.authorId || `usr_${role}_01`,
     authorName: row.author_name || row.authorName || 'Reviewer',
-    authorRole: row.author_role || row.authorRole || 'reviewer',
+    authorRole: role,
     commentText: row.comment_text || row.commentText || '',
     createdAt: row.created_at || row.createdAt || new Date().toISOString()
   };
@@ -46,25 +61,32 @@ export class WorkflowRepository {
 
   public static async addComment(comment: Omit<ReviewComment, 'id' | 'createdAt'>): Promise<ReviewComment> {
     const id = `comment_${Date.now()}`;
+    const role = comment.authorRole || 'reviewer';
+    const authorId = comment.authorId || `usr_${role}_01`;
+
     const newComment: ReviewComment = {
       ...comment,
       id,
+      authorId,
+      authorRole: role,
       createdAt: new Date().toISOString()
     };
 
     const supabase = getSupabase();
     if (supabase) {
       try {
-        await supabase.from('review_threads').insert({
+        const { error } = await supabase.from('review_threads').insert({
           id,
           content_id: comment.contentId,
-          violation_id: comment.violationId,
-          author_id: comment.authorId,
-          author_name: comment.authorName,
-          author_role: comment.authorRole,
+          violation_id: comment.violationId || null,
+          author_id: authorId,
+          author_name: comment.authorName || 'Reviewer',
           comment_text: comment.commentText,
           created_at: newComment.createdAt
         });
+        if (error) {
+          console.warn('Supabase addComment insert error:', error);
+        }
       } catch (err) {
         console.warn('Supabase addComment failed, using fallback store:', err);
       }

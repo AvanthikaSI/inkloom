@@ -323,10 +323,22 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
   const handleOverride = async () => {
     if (!selectedViolation || !overrideReason.trim()) return;
     try {
+      let guidelineId = selectedViolation.guidelineId;
+      if (!guidelineId) {
+        const cat = selectedViolation.category as string;
+        if (cat === 'unsupported_claim' || cat === 'factual_inaccuracy' || cat === 'legal') {
+          guidelineId = 'bg_legal_01';
+        } else if (cat === 'visual_inconsistency' || cat === 'accessibility' || cat === 'visual') {
+          guidelineId = 'bg_visual_01';
+        } else {
+          guidelineId = 'bg_tone_01';
+        }
+      }
+
       await overrideWarning(
         contentId,
         selectedViolation.id,
-        selectedViolation.guidelineId || 'bg_tone_01',
+        guidelineId,
         overrideReason
       );
 
@@ -341,6 +353,7 @@ export const ReviewStudio: React.FC<Partial<ReviewStudioProps>> = ({
       setShowOverrideModal(false);
       setOverrideReason('');
       setSelectedViolation(null);
+      setSuccessMessage('Override recorded and logged to governance trail.');
     } catch (e: any) {
       setErrorMessage(e.message || 'Failed to record override justification.');
     }
